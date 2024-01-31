@@ -25,11 +25,11 @@ input wire [DATAWIDTH-1:0] a,b;
 output reg gt,lt,eq;
 
 always @(*) begin
-    if(a > b) gt <= 1;
+    if(a < b) gt <= 1;
     else gt <= 0;
     if (a == b) eq <= 1;
     else eq <= 0;
-    if (a < b) lt <= 1;
+    if (a > b) lt <= 1;
     else lt <= 0;
 end
 
