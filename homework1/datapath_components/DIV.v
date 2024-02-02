@@ -20,10 +20,10 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module DIV #(parameter DATA_WIDTH = 8) (
-    input [DATA_WIDTH-1:0] a,
-    input [DATA_WIDTH-1:0] b,
-    output [DATA_WIDTH-1:0] quot
+module DIV #(parameter DATAWIDTH = 8) (
+    input [DATAWIDTH-1:0] a,
+    input [DATAWIDTH-1:0] b,
+    output [DATAWIDTH-1:0] quot
 );
 
 assign quot = a / b ;
