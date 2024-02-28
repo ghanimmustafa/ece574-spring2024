@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 01/23/2024 12:52:02 PM
+// Create Date: 02/28/2024 08:19:14 AM
 // Design Name: 
-// Module Name: COMP
+// Module Name: SDIV
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,17 +20,13 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module COMP #(parameter DATAWIDTH = 2) (a,b,gt,lt,eq);
-input wire [DATAWIDTH-1:0] a,b;
-output reg gt,lt,eq;
+module SDIV #(parameter DATAWIDTH = 8) (
+    input signed [DATAWIDTH-1:0] a,
+    input signed[DATAWIDTH-1:0] b,
+    output signed [DATAWIDTH-1:0] quot
+);
 
-always @(*) begin
-    if(a < b) lt <= 1;
-    else lt <= 0;
-    if (a == b) eq <= 1;
-    else eq <= 0;
-    if (a > b) gt <= 1;
-    else gt <= 0;
-end
+assign quot = a / b ;
 
 endmodule
+

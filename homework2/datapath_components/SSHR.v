@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 01/23/2024 12:52:02 PM
+// Create Date: 02/27/2024 09:58:58 PM
 // Design Name: 
-// Module Name: COMP
+// Module Name: SSHR
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,17 +20,13 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module COMP #(parameter DATAWIDTH = 2) (a,b,gt,lt,eq);
-input wire [DATAWIDTH-1:0] a,b;
-output reg gt,lt,eq;
+module SSHR #(parameter DATAWIDTH = 2) (a, sh_amt, d);
+    input signed [DATAWIDTH-1:0] a;
+    // Calculate the number of bits required for the shift amount
+    localparam SH_AMT_WIDTH = $clog2(DATAWIDTH);
+    input signed [SH_AMT_WIDTH-1:0] sh_amt;
+    output signed [DATAWIDTH-1:0] d;
 
-always @(*) begin
-    if(a < b) lt <= 1;
-    else lt <= 0;
-    if (a == b) eq <= 1;
-    else eq <= 0;
-    if (a > b) gt <= 1;
-    else gt <= 0;
-end
-
+    assign d = a >>> sh_amt;
 endmodule
+

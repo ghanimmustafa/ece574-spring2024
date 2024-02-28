@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 01/23/2024 12:52:02 PM
+// Create Date: 02/27/2024 10:33:33 AM
 // Design Name: 
-// Module Name: COMP
+// Module Name: SSUB
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,17 +20,10 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module COMP #(parameter DATAWIDTH = 2) (a,b,gt,lt,eq);
-input wire [DATAWIDTH-1:0] a,b;
-output reg gt,lt,eq;
 
-always @(*) begin
-    if(a < b) lt <= 1;
-    else lt <= 0;
-    if (a == b) eq <= 1;
-    else eq <= 0;
-    if (a > b) gt <= 1;
-    else gt <= 0;
-end
+module SSUB #(parameter DATAWIDTH = 2) (a,b,diff);
+input wire signed [DATAWIDTH-1:0] a,b;
+output wire signed [DATAWIDTH-1:0] diff;
 
+assign diff = a - b;
 endmodule

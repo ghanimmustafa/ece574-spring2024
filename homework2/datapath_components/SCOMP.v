@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 01/23/2024 12:52:02 PM
+// Create Date: 02/27/2024 09:49:55 PM
 // Design Name: 
-// Module Name: COMP
+// Module Name: SCOMP
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,9 +20,10 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module COMP #(parameter DATAWIDTH = 2) (a,b,gt,lt,eq);
-input wire [DATAWIDTH-1:0] a,b;
-output reg gt,lt,eq;
+
+module SCOMP #(parameter DATAWIDTH = 2) (a,b,gt,lt,eq);
+input wire signed [DATAWIDTH-1:0] a,b;
+output reg signed gt,lt,eq;
 
 always @(*) begin
     if(a < b) lt <= 1;

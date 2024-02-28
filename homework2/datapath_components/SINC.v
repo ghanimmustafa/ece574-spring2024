@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 01/23/2024 12:52:02 PM
+// Create Date: 02/28/2024 08:39:51 AM
 // Design Name: 
-// Module Name: COMP
+// Module Name: SINC
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,17 +20,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module COMP #(parameter DATAWIDTH = 2) (a,b,gt,lt,eq);
-input wire [DATAWIDTH-1:0] a,b;
-output reg gt,lt,eq;
+module SINC #(parameter DATA_WIDTH = 8) (
+    input signed [DATA_WIDTH-1:0] a,
+    output signed [DATA_WIDTH-1:0] d
+);
 
-always @(*) begin
-    if(a < b) lt <= 1;
-    else lt <= 0;
-    if (a == b) eq <= 1;
-    else eq <= 0;
-    if (a > b) gt <= 1;
-    else gt <= 0;
-end
+assign d = a + 1 ;
 
 endmodule
