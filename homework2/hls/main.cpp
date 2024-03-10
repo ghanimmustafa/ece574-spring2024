@@ -20,6 +20,8 @@ int main(int argc, char** argv) {
     parser.parse();
     VerilogGenerator generator(parser.getComponents(), parser.getOperations());
     generator.generateVerilog(outputFilePath, moduleName); // Now correctly passing both arguments
+    
+    //parser.postprocessVerilogCode(outputFilePath);
 
     std::cout << "Verilog code generated successfully for module " << moduleName << ".\n";
     return 0;

@@ -1,12 +1,14 @@
 #include "VerilogGenerator.h"
-
 #include <fstream>
 #include <sstream>
 #include <algorithm> // For std::remove_if
 #include <cctype> // For std::isspace
 #include <chrono>
 #include <ctime>
+
 // Constructor definition
+bool isExactlyOne(const std::string& str);  
+
 VerilogGenerator::VerilogGenerator(const std::vector<Component>& components, const std::vector<Operation>& operations)
     : components(components), operations(operations) {}
 
@@ -22,6 +24,7 @@ void VerilogGenerator::generateVerilog(const std::string& outputPath, const std:
             << "// Date and Time: " << std::ctime(&currentTime)  << "\n"; // ctime includes a newline at the end
     // Start module declaration
     moduleDecl <<"`timescale 1ns / 1ps\n" << "module " << moduleName << "(\n";
+    moduleDecl << "\tinput Clk, Rst;\n"; 
 
     // Process components to generate module IOs and wires
     for (const auto& component : components) {
@@ -63,15 +66,75 @@ std::string VerilogGenerator::generateOperationCode(const Operation& operation) 
     std::stringstream ss;
     static std::unordered_map<std::string, int> opCounters;
     int count = ++opCounters[operation.opType];
-
+    std::string moduleName = operation.isSigned ? "S" + operation.opType : operation.opType;
     // Choose the submodule name based on signedness
+    if (operation.opType == "REG") { // Assuming "+" denotes ADD operation
+        // Example instantiation of an ADD datapath component
+        ss << "REG" << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+             " (.d("<< operation.operands[0]<<"),.Clk(Clk),.Rst(Rst),.q("<< operation.result <<"));";
+    }    
     if (operation.opType == "ADD") { // Assuming "+" denotes ADD operation
-        std::string moduleName = operation.isSigned ? "SADD" : "ADD";   
         // Example instantiation of an ADD datapath component
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
              " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
            <<"),.sum("<< operation.result <<"));";
     }
+    else if (operation.opType == "SUB") { 
+        ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+           <<"),.diff("<< operation.result <<"));";
+    }
+
+    else if (operation.opType == "MUL") { 
+        ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+           <<"),.prod("<< operation.result <<"));";
+    } 
+
+    else if (operation.opType == "INC" || operation.opType == "DEC") { 
+        int nonOneOperandIndex = isExactlyOne(operation.operands[0]) ? 1 : 0;
+        ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+             " (.a("<< operation.operands[nonOneOperandIndex]<<"),.d("<< operation.result <<"));";
+    }
+
+    else if (operation.opType == "SHR" || operation.opType == "SHL" ) { 
+        ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+             " (.a("<< operation.operands[0]<<"),.sh_amt(" << operation.operands[1] 
+           <<"),.d("<< operation.result <<"));";
+    }
+    else if (operation.opType == "DIV") { 
+        ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+           <<"),.quot("<< operation.result <<"));";
+    } 
+    else if (operation.opType == "MOD") { 
+        ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+           <<"),.rem("<< operation.result <<"));";
+    }
+    else if (operation.opType == "MUX2x1") { 
+        ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+             " (.sel("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+           <<"),.d("<< operation.result <<"),.a("<<  operation.operands[2]<<"));";
+    }
+    else if (operation.opType == "COMP") { 
+        if(operation.symbol == "=="){
+					ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+							" (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+					<<"),.eq("<< operation.result <<"),.lt(0),.gt(0));";
+        }
+	      else if(operation.symbol == ">"){
+					ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+							" (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+					<<"),.eq(0),.lt(0),.gt("<< operation.result <<"));";
+        }
+	      else if(operation.symbol == "<"){
+					ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
+							" (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+					<<"),.eq(0),.lt("<< operation.result <<"),.gt(0));";
+        }									   
+    }
+
     // Add instantiation code for more operation types as needed
     return ss.str();
 }
