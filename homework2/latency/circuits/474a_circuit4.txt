@@ -1,0 +1,39 @@
+# Look into actual_circuits/474a_circuit4.txt for the actual code
+
+# Name, type, inputs, output, datawidth
+
+/ 
+ADD1 ADD a b d 64
+ADD2 ADD a c e 64
+SUB1 SUB a b f 64
+COMP1 COMP d e dEQe 64
+COMP2 COMP d e dLTe 64
+COMP3 COMP dLTe 1 q 64
+COMP4 COMP dEQe 1 h 64
+REG1 REG h 0 hreg 64
+REG2 REG g 0 greg 64
+SHL1 SHL hreg dLTe xrin 64
+SHR1 SHR greg dEQe zrin 64
+REG3 REG xrin 0 x 64
+REG4 REG zrin 0 z 64
+
+# Dependencies
+-
+ADD1 COMP1
+ADD1 COMP2
+ADD1 COMP3
+ADD2 COMP1
+ADD2 COMP2
+ADD2 COMP3
+COMP1 COMP4
+COMP1 SHR1
+COMP2 COMP3
+COMP2 SHL1
+SUB1 COMP3
+COMP3 COMP4
+COMP4 REG1
+COMP3 REG2
+REG1 SHL1
+REG2 SHR1
+SHL1 REG3
+SHR1 REG4
