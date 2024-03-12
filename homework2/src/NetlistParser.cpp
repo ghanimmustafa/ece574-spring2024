@@ -170,7 +170,8 @@ void NetlistParser::parseLine(const std::string& line) {
             operation.result = result;
             operation.operands.push_back(leftOperand);
             operation.operands.push_back(rightOperand);
-            operation.symbol = opSymbol;
+            operation.symbol = opSymbol; 
+            std:: cout << opSymbol << std::endl;
             // Utilize the isExactlyOne function to check operands
             if (opSymbol == "+" && (isExactlyOne(leftOperand) || isExactlyOne(rightOperand))) operation.opType = "INC"; // Increment operation if one operand is exactly "1"
             else if (opSymbol == "-" && (isExactlyOne(leftOperand) || isExactlyOne(rightOperand))) operation.opType = "DEC"; // Decrement operation if one operand is exactly "1
@@ -203,8 +204,6 @@ void NetlistParser::parseLine(const std::string& line) {
     }
 }
 
-
-
 const std::vector<Component>& NetlistParser::getComponents() const {
     return components;
 }
@@ -212,3 +211,4 @@ const std::vector<Component>& NetlistParser::getComponents() const {
 const std::vector<Operation>& NetlistParser::getOperations() const {
     return operations;
 }
+

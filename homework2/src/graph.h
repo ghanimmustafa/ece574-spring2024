@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "NetlistParser.h"
 
 // WRITE DESTRUCTORS!!!!!!!
 
@@ -24,8 +25,7 @@ class Node {
 public:
     std::string name;
     std::string type;
-    std::string input1;
-    std::string input2;
+    std::vector<std::string> inputs;
     std::string output;
     int64_t datawidth;
 
@@ -37,8 +37,8 @@ public:
     std::vector<Node*> next;
     std::vector<Node*> prev;
 
-    Node(std::string name, std::string type, std::string input1, std::string input2, std::string output, int64_t datawidth);
-    Node(std::string name, std::string type, std::string input1, std::string input2, std::string output, int64_t datawidth, Latency_type latency_type);
+    Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth);
+    Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, Latency_type latency_type);
     Node(std::string name);
     void setNext(Node* node);
     void setPrev(Node* node);
@@ -52,12 +52,12 @@ public:
     Node* sink_node;
     std::vector<Node*> vertices;
 
-    Graph(std::string file_name);
-    void form_graph(std::string file_name);
+    Graph(std::vector<Component> components, std::vector<Operation> operations);
+    void generate_components_and_dependencies(std::vector<Component> components, std::vector<Operation> operations);
     void resolve_dependencies();
     std::vector<Node*> topological_sort(std::vector<Node*> list, Node* vertex);
     std::vector<Node*> TS_visit(std::vector<Node*> list, Node* vertex);
-    void longest_path();
+    double longest_path();
     friend std::ostream& operator<<(std::ostream& os,  const Graph& graph);
 
 

@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 struct LatencyValues {
-    float values[6];
+    double values[6];
 };
 
 std::unordered_map<std::string, LatencyValues> latency_values = {

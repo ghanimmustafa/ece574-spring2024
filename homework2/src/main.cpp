@@ -1,5 +1,6 @@
 #include "NetlistParser.h"
 #include "VerilogGenerator.h"
+#include "graph.h"
 #include <iostream>
 #include <filesystem> // C++17 header for file path manipulations
 
@@ -20,9 +21,17 @@ int main(int argc, char** argv) {
     parser.parse();
     VerilogGenerator generator(parser.getComponents(), parser.getOperations());
     generator.generateVerilog(outputFilePath, moduleName); // Now correctly passing both arguments
-    
+
     //parser.postprocessVerilogCode(outputFilePath);
 
-    std::cout << "Verilog code generated successfully for module " << moduleName << ".\n";
+    Graph *graph = new Graph(parser.getComponents(), parser.getOperations());
+    //std::cout << *graph << std::endl;
+    double critical_path = graph->longest_path();
+    std::cout << "Critical Path : " << critical_path << " ns" << std::endl << std::endl;
+    std::cout << moduleName << ".v Verilog file successfully created " << "\n";
+
+
+    delete graph;
+
     return 0;
 }
