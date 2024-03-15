@@ -48,8 +48,6 @@ public:
     const std::vector<Operation>& getOperations() const;
     std::unordered_map<std::string, int> componentWidths;
     std::unordered_map<std::string, bool> componentSignedness;
-    void postprocessVerilogCode(const std::string& filePath);
-
 private:
     std::string filePath;
     std::vector<Component> components;
