@@ -12,6 +12,39 @@ void NetlistParser::parse() {
     while (getline(file, line)) {
         parseLine(line);
     }
+            // After processing all operations
+            
+    for (auto& component : components) {
+        // Check if the component is an output and hasn't been registered
+        if (component.type == "output" && !component.isReg) {
+            // Check if the wire component already exists
+            std::string wireOperand = component.name + "wire";
+            bool wireExists = std::any_of(components.begin(), components.end(), [&](const Component& comp) { return comp.name == wireOperand; });
+
+            // If the wire component doesn't exist, add it to the components
+            if (!wireExists) {
+                Component wireComponent;
+                wireComponent.type = "wire";
+                wireComponent.name = wireOperand;
+                wireComponent.width = component.width; // Set the width according to the component
+                wireComponent.isSigned = component.isSigned; // Set the signedness according to the component
+                components.push_back(wireComponent);
+                std::cout << "Declared wire component: " << wireOperand << " with width " << component.width << (component.isSigned ? ", signed" : ", unsigned") << "\n";
+            }
+
+            // Add a registration operation for the output component
+            Operation regOperation;
+            regOperation.result = component.name;
+            regOperation.operands.push_back(wireOperand);
+            regOperation.opType = "REG";
+            regOperation.width = component.width; // Set the width according to the component
+            regOperation.isSigned = component.isSigned; // Set the signedness according to the component
+            operations.push_back(regOperation);
+
+            // Set the isReg flag for the output component
+            component.isReg = true;
+        }
+    }    
 }
 bool isNumeric(const std::string& str);
 bool isExactlyOne(const std::string& str);  
@@ -23,10 +56,38 @@ bool isOnlyWhitespace(const std::string& str);
 #include <vector>
 #include <set>
 
+int NetlistParser::determineOperationWidth(const std::string& opType, const std::vector<std::string>& operands, const std::string& result) {
+    int maxWidth = 0;
+
+    if (opType == "COMP") {
+        // Determine the maximum width among operands
+        for (const auto& operand : operands) {
+            if (isNumeric(operand) || isOnlyWhitespace(operand)) continue; // Skip constants or empty operands
+
+            if (componentWidths.find(operand) != componentWidths.end()) {
+                int width = componentWidths[operand];
+                maxWidth = std::max(maxWidth, width);
+            } else {
+                std::cerr << "Error: Operand " << operand << " not found.\n";
+                std::exit(EXIT_FAILURE); // Exit if an operand width cannot be determined.
+            }
+        }
+    } else {
+        // Determine the width based on the result
+        if (componentWidths.find(result) != componentWidths.end()) {
+            maxWidth = componentWidths[result];
+        } else {
+            std::cerr << "Error: Result " << result << " not found.\n";
+            std::exit(EXIT_FAILURE); // Exit if the result width cannot be determined.
+        }
+    }
+
+    return maxWidth;
+}
 
 
 
-
+/*
 int NetlistParser::determineOperationWidth(const std::string& opType, const std::vector<std::string>& operands,const std::string& result) {
     int maxWidth = 0;
     if (componentWidths.find(result) != componentWidths.end()) {
@@ -46,6 +107,8 @@ int NetlistParser::determineOperationWidth(const std::string& opType, const std:
     }
     return maxWidth;
 }
+
+*/
 bool NetlistParser::determineOperationSign(const std::string& opType, const std::vector<std::string>& operands,const std::string& result) {
      if (componentSignedness.find(result) != componentSignedness.end() && componentSignedness[result]) {
         return true; // Operation is signed if the result is signed
@@ -127,11 +190,12 @@ void NetlistParser::parseLine(const std::string& line) {
                     component.type = word;
                     component.name = componentName;
                     component.width = width;
-                    component.isSigned = isSigned;
+                    if(width == 1) component.isSigned = false;
+                    else component.isSigned = isSigned;
                     components.push_back(component);
                     componentWidths[componentName] = width; // Update componentWidths map
                     componentSignedness[componentName] = isSigned; // Track signedness of components
-                    std::cout << "Parsed " << word << ": " << componentName << " with width " << width << (isSigned ? ", signed" : ", unsigned") << "\n"; 
+                    std::cout << "Parsed " << word << ": " << componentName << " with width " << width << (component.isSigned ? ", signed" : ", unsigned") << "\n"; 
                 }
             }
 
@@ -173,8 +237,17 @@ void NetlistParser::parseLine(const std::string& line) {
                 else if (opSymbol == "%") operation.opType = "MOD";        
                 else if (opSymbol == ">" || opSymbol == "==" || opSymbol == "<") operation.opType = "COMP";        
                 else if (opSymbol == "?") {operation.opType = "MUX2x1";operation.operands.push_back(mux_right);}   
-                else if (opSymbol == "") ;//operation.opType = "REG";        
+                else if (opSymbol == "") {
+                    // Find the corresponding component
+                    auto resultComponent = std::find_if(components.begin(), components.end(), [&](const Component& comp) { return comp.name == result; });
 
+                    // If the result component is found and is registered, assign operation type
+                    if (resultComponent != components.end() && !resultComponent->isReg){ 
+                        operation.opType = "REG";
+                        resultComponent->isReg = true;
+                    }    
+                }    
+                
                 else {
                     std::cerr << "Unsupported operation symbol: " << opSymbol << "\n";
                     std::exit(EXIT_FAILURE); // Terminate the program for unsupported symbols
@@ -190,40 +263,9 @@ void NetlistParser::parseLine(const std::string& line) {
                 std::cout << "Parsed MUX: " << result << " = " << leftOperand << " " << opSymbol << " " << rightOperand <<  " " << colon <<  " " << mux_right << "\n";
             
             }
-            // After processing all operations
-            for (const auto& component : components) {
-                // Check if the component is an output and hasn't been registered
-                if (component.type == "output") {
-                    bool isRegistered = false;
-                    for (const auto& op : operations) {
-                        if (op.result == component.name && op.opType == "REG") {
-                            isRegistered = true;
-                            break;
-                        }
-                    }
-                    // If the output is not registered, add a registration operation
-                    if (!isRegistered) {
-                        Operation regOperation;
-                        regOperation.result = component.name;
-                       std::string wireOperand = component.name + "wire";
-                        regOperation.operands.push_back(wireOperand);
 
-                        // If the wire component doesn't exist, add it to the components
-                        if (std::find_if(components.begin(), components.end(), [&](const Component& comp) { return comp.name == wireOperand; }) == components.end()) {
-                            Component wireComponent;
-                            wireComponent.type = "wire";
-                            wireComponent.name = wireOperand;
-                            wireComponent.width = component.width; // Set the width according to the component
-                            wireComponent.isSigned = component.isSigned; // Set the signedness according to the component
-                            components.push_back(wireComponent);
-                            std::cout << "Declared wire component: " << wireOperand << " with width " << component.width << (component.isSigned ? ", signed" : ", unsigned") << "\n";
-                        }                        regOperation.opType = "REG";
-                        regOperation.width = component.width; // Set the width according to the component
-                        regOperation.isSigned = component.isSigned; // Set the signedness according to the component
-                        operations.push_back(regOperation);
-                    }
-                }
-            }                
+            
+
         }
     }    
 }

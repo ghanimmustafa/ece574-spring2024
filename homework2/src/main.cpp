@@ -15,6 +15,11 @@ int main(int argc, char** argv) {
     std::string netlistFilePath = argv[1];
     std::string outputFilePath = argv[2];
     // Extract the base name of the netlist file without extension to use as the module name
+    // Check if the netlist file exists
+    if (!std::filesystem::exists(netlistFilePath)) {
+        std::cerr << "Error: Netlist file '" << netlistFilePath << "' does not exist.\n";
+        return 2; // Return a different error code for this specific error
+    }   
     std::string moduleName = fs::path(netlistFilePath).stem().string();
 
     NetlistParser parser(netlistFilePath);

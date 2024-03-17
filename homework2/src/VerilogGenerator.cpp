@@ -29,14 +29,17 @@ void VerilogGenerator::generateVerilog(const std::string& outputPath, const std:
     // Process components to generate module IOs and wires
     for (const auto& component : components) {
         std::string signModifier = component.isSigned ? " signed" : "";
+        std::string widthSpecifier = (component.width > 1) ? " [" + std::to_string(component.width - 1) + ":0]" : "";
+        
         if (component.type == "input") {
-            moduleDecl << "\tinput "<< signModifier << " [" << (component.width - 1) << ":0] " << component.name << ",\n";
+            moduleDecl << "\tinput" << signModifier << widthSpecifier << " " << component.name << ",\n";
         } else if (component.type == "output") {
-            moduleDecl << "\toutput  "<< signModifier << " [" << (component.width - 1) << ":0] " << component.name << ",\n";
-        } else if (component.type == "wire") {
-            wires << "wire  "<< signModifier << " [" <<  (component.width - 1) << ":0] " << component.name << ";\n";
+            moduleDecl << "\toutput" << signModifier << widthSpecifier << " " << component.name << ",\n";
+        } else if (component.type == "wire" || component.type == "register") {
+            wires << "wire" << signModifier << widthSpecifier << " " << component.name << ";\n";
         }
     }
+
 
     // Remove the last comma and add closing parenthesis
     std::string moduleDeclStr = moduleDecl.str();
@@ -96,12 +99,25 @@ std::string VerilogGenerator::generateOperationCode(const Operation& operation) 
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
              " (.a("<< operation.operands[nonOneOperandIndex]<<"),.d("<< operation.result <<"));";
     }
+    else if (operation.opType == "SHR" || operation.opType == "SHL") {
+        ss << moduleName << " # (.DATAWIDTH(" << operation.width << ")) " << operation.opType << "_" << count <<
+            " (.a(" << operation.operands[0] << "),.sh_amt(";
 
-    else if (operation.opType == "SHR" || operation.opType == "SHL" ) { 
-        ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.a("<< operation.operands[0]<<"),.sh_amt(" << operation.operands[1] 
-           <<"),.d("<< operation.result <<"));";
+        // Find the corresponding component of the second operand
+        auto operandComponent = std::find_if(components.begin(), components.end(), [&](const Component& comp) { return comp.name == operation.operands[1]; });
+
+        // Check if the component is found and if it's signed
+        if (operandComponent != components.end() && operandComponent->isSigned) {
+            // Operand is signed, use $unsigned to convert it
+            ss << "$unsigned(" << operation.operands[1] << ")";
+        } else {
+            // Operand is unsigned or not found, use it directly
+            ss << operation.operands[1];
+        }
+
+        ss << "),.d(" << operation.result << "));";
     }
+
     else if (operation.opType == "DIV") { 
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
              " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 

@@ -28,6 +28,7 @@ struct Component {
     std::string name;
     int width;
     bool isSigned;
+    bool isReg;
 };
 
 // Represents an operation in the netlist (e.g., ADD, SUB, MUL)
