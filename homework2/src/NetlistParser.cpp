@@ -44,7 +44,11 @@ void NetlistParser::parse() {
             // Set the isReg flag for the output component
             component.isReg = true;
         }
-    }    
+    }
+    // After parsing all components
+    for (const auto& component : components) {
+        std::cout << "Component: " << component.name << ", isReg: " << (component.isReg ? "true" : "false") << std::endl;
+    }       
 }
 bool isNumeric(const std::string& str);
 bool isExactlyOne(const std::string& str);  
