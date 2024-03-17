@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+
 // Define the map as a static member of the class (or globally if more appropriate for your design)
 static std::unordered_map<std::string, std::string> operationSymbols = {
     {"+", "ADD"},
@@ -49,6 +50,7 @@ public:
     const std::vector<Operation>& getOperations() const;
     std::unordered_map<std::string, int> componentWidths;
     std::unordered_map<std::string, bool> componentSignedness;
+    void modifyModuleName(std::string& moduleName);
 private:
     std::string filePath;
     std::vector<Component> components;

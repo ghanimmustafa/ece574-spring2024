@@ -5,9 +5,13 @@
 #include <cctype> // For std::isspace
 #include <chrono>
 #include <ctime>
+#include <iostream>
 
 // Constructor definition
 bool isExactlyOne(const std::string& str);  
+
+
+
 
 VerilogGenerator::VerilogGenerator(const std::vector<Component>& components, const std::vector<Operation>& operations)
     : components(components), operations(operations) {}
@@ -24,7 +28,7 @@ void VerilogGenerator::generateVerilog(const std::string& outputPath, const std:
             << "// Date and Time: " << std::ctime(&currentTime)  << "\n"; // ctime includes a newline at the end
     // Start module declaration
     moduleDecl <<"`timescale 1ns / 1ps\n" << "module " << moduleName << "(\n";
-    moduleDecl << "\tinput Clk, Rst;\n"; 
+    moduleDecl << "\tinput Clk, Rst,\n"; 
 
     // Process components to generate module IOs and wires
     for (const auto& component : components) {
@@ -70,38 +74,183 @@ std::string VerilogGenerator::generateOperationCode(const Operation& operation) 
     static std::unordered_map<std::string, int> opCounters;
     int count = ++opCounters[operation.opType];
     std::string moduleName = operation.isSigned ? "S" + operation.opType : operation.opType;
+    // Function to determine the required padding or extension for operands
+    auto bit_extensions = [&](const std::string& operand) {
+        for (const auto& comp : components) {
+            if (comp.name == operand) {
+                // Check if the operand is signed
+                bool isSignedOperand = comp.isSigned;
+                bool isSignedOperation = operation.isSigned;
+                // Get the width of the operand
+                int operandWidth = comp.width;
+                // Determine the required padding or extension
+                int requiredWidth = operation.width; // Width of the result
+                if (operation.opType == "MUX2x1" && operand == operation.operands[0] && operandWidth >= 1) {
+                // For MUX2x1 operation, modify the third operand to take only its LSB
+                    if(operandWidth > 1 ) return operand + "[0]";
+                    else  return operand;
+                  
+                }               
+                if (operandWidth < requiredWidth) {
+                    if (isSignedOperand) {
+                        // Sign extension
+                        return "{{" + std::to_string(requiredWidth - operandWidth) + "{" + operand + "[" + std::to_string(operandWidth - 1) + "]}}, " + operand + "}";
+                    } else {
+                        // Zero padding
+                        return "{{" + std::to_string(requiredWidth - operandWidth) + "{1'b0}}, " + operand + "}";
+                    }
+                } else if (operandWidth > requiredWidth) {
+                    // Extract least significant bits if operand width is greater
+                    return operand + "[" + std::to_string(requiredWidth - 1) + ":0]";
+                }
+            }
+        }
+        // Return original operand if not found in components
+        return operand;
+    };
+    auto bit_extension_and_sign_check = [&](const std::string& operand,int index) {
+        std::string extended_operand = operand;
+        for (const auto& comp : components) {
+            if (comp.name == operand) {
+                // Check if the operand is signed
+                bool isSignedOperand = comp.isSigned;
+                // Check if the operation is signed
+                bool isSignedOperation = operation.isSigned;
+
+                // Determine the required padding or extension
+                int operandWidth = comp.width;
+                int requiredWidth = operation.width; // Width of the result
+
+                // Perform bit extension or truncation
+                if (operandWidth < requiredWidth) {
+                    if (isSignedOperand) {
+                        // Sign extension
+                        extended_operand = "{{" + std::to_string(requiredWidth - operandWidth) + "{" + operand + "[" + std::to_string(operandWidth - 1) + "]}}, " + operand + "}";
+                    } else {
+                        // Zero padding
+                        extended_operand = "{{" + std::to_string(requiredWidth - operandWidth) + "{1'b0}}, " + operand + "}";
+                    }
+                } else if (operandWidth > requiredWidth) {
+                    // Extract least significant bits if operand width is greater
+                    extended_operand += "[" + std::to_string(requiredWidth - 1) + ":0]";
+                }
+
+                // Handle sign conversion
+                if (isSignedOperand != isSignedOperation) {
+                    // Debug: Print component and operation information
+                    #if defined(ENABLE_LOGGING)  
+                    std::cout << "Debug: Component found: " << comp.name << ", isSigned: " << (comp.isSigned ? "true" : "false") << ", width: " << comp.width << std::endl;
+                    std::cout << "Debug: Operation sign: " << (isSignedOperation ? "signed" : "unsigned") << ", width: " << operation.width << std::endl;
+                    #endif 
+                    // Operand sign and operation sign are different
+                    if (isSignedOperation) {
+                        // Add $signed(operand)
+                        if((operation.opType != "SHR" || operation.opType != "SHL") && index !=2)
+                            extended_operand = "$signed(" + extended_operand + ")";
+                    } else {
+                        // Add $unsigned(operand)
+                        extended_operand = "$unsigned(" + extended_operand + ")";
+                    }
+                }
+
+                // For MUX2x1 operation, modify the third operand to take only its LSB
+                if (operation.opType == "MUX2x1" && operand == operation.operands[0] && operandWidth >= 1) {
+                    if (operandWidth > 1) {
+                        extended_operand += "[0]";
+                    }
+                }
+
+                return extended_operand;
+            }
+        }
+
+        // Return original operand if not found in components
+        return operand;
+    };
+
+
+
+
+
+    auto operand_sign_check = [&](const std::string& operand) {
+        for (const auto& comp : components) {
+            if (comp.name == operand) {
+                // Check if the operand is signed
+                bool isSignedOperand = comp.isSigned;
+                // Check if the operation is signed
+                bool isSignedOperation = operation.isSigned;
+                
+                if (isSignedOperand != isSignedOperation) {
+                    // Operand sign and operation sign are different
+                    if (isSignedOperation) {
+                        // Add $signed(operand)
+                        return "$signed(" + operand + ")";
+                    } else {
+                        // Add $unsigned(operand)
+                        return "$unsigned(" + operand + ")";
+                    }
+                } else {
+                    // Operand sign matches operation sign
+                    return operand;
+                }
+            }
+        }
+        // Return original operand if not found in components
+        return operand;
+    };   
+    std::string first_operand, second_operand, third_operand;
+     // In-place modification of operands
+    // Modify operands based on availability
+    int index;
+    if (operation.operands.size() > 0) {
+        index = 1;
+        first_operand = bit_extension_and_sign_check(operation.operands[0],index);
+
+    }
+    if (operation.operands.size() > 1) {
+        index = 2;
+        second_operand = bit_extension_and_sign_check(operation.operands[1],index);
+
+    }
+    if (operation.operands.size() > 2) {
+        index = 3;
+        third_operand = bit_extension_and_sign_check(operation.operands[2],index);
+    }
+   // std::string second_operand = getModifiedOperand(operation.operands[1]);
     // Choose the submodule name based on signedness
+  // Preprocess operands
     if (operation.opType == "REG") { // Assuming "+" denotes ADD operation
         // Example instantiation of an ADD datapath component
         ss << "REG" << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.d("<< operation.operands[0]<<"),.Clk(Clk),.Rst(Rst),.q("<< operation.result <<"));";
+             " (.d("<< first_operand<<"),.Clk(Clk),.Rst(Rst),.q("<< operation.result <<"));";
     }    
     if (operation.opType == "ADD") { // Assuming "+" denotes ADD operation
         // Example instantiation of an ADD datapath component
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+             " (.a("<< first_operand <<"),.b(" << second_operand
            <<"),.sum("<< operation.result <<"));";
     }
     else if (operation.opType == "SUB") { 
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+             " (.a("<< first_operand<<"),.b(" << second_operand
            <<"),.diff("<< operation.result <<"));";
     }
 
     else if (operation.opType == "MUL") { 
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+             " (.a("<< first_operand<<"),.b(" << second_operand
            <<"),.prod("<< operation.result <<"));";
     } 
 
     else if (operation.opType == "INC" || operation.opType == "DEC") { 
         int nonOneOperandIndex = isExactlyOne(operation.operands[0]) ? 1 : 0;
+        std::string selectedOperand = nonOneOperandIndex == 0 ? first_operand : second_operand;
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.a("<< operation.operands[nonOneOperandIndex]<<"),.d("<< operation.result <<"));";
+             " (.a("<< selectedOperand<<"),.d("<< operation.result <<"));";
     }
     else if (operation.opType == "SHR" || operation.opType == "SHL") {
         ss << moduleName << " # (.DATAWIDTH(" << operation.width << ")) " << operation.opType << "_" << count <<
-            " (.a(" << operation.operands[0] << "),.sh_amt(";
+            " (.a(" << first_operand << "),.sh_amt(";
 
         // Find the corresponding component of the second operand
         auto operandComponent = std::find_if(components.begin(), components.end(), [&](const Component& comp) { return comp.name == operation.operands[1]; });
@@ -109,44 +258,44 @@ std::string VerilogGenerator::generateOperationCode(const Operation& operation) 
         // Check if the component is found and if it's signed
         if (operandComponent != components.end() && operandComponent->isSigned) {
             // Operand is signed, use $unsigned to convert it
-            ss << "$unsigned(" << operation.operands[1] << ")";
+            ss << "$unsigned(" << second_operand << ")";
         } else {
             // Operand is unsigned or not found, use it directly
-            ss << operation.operands[1];
+            ss << second_operand;
         }
-
+        ss << second_operand;
         ss << "),.d(" << operation.result << "));";
     }
 
     else if (operation.opType == "DIV") { 
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+             " (.a("<<first_operand<<"),.b(" << second_operand
            <<"),.quot("<< operation.result <<"));";
     } 
     else if (operation.opType == "MOD") { 
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+             " (.a("<< first_operand<<"),.b(" << second_operand 
            <<"),.rem("<< operation.result <<"));";
     }
     else if (operation.opType == "MUX2x1") { 
         ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-             " (.sel("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
-           <<"),.d("<< operation.result <<"),.a("<<  operation.operands[2]<<"));";
+             " (.sel("<< first_operand<<"),.b(" <<second_operand 
+           <<"),.d("<< operation.result <<"),.a("<< third_operand<<"));";
     }
     else if (operation.opType == "COMP") { 
         if(operation.symbol == "=="){
 					ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-							" (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+							" (.a("<< first_operand<<"),.b(" <<second_operand
 					<<"),.eq("<< operation.result <<"),.lt(0),.gt(0));";
         }
 	      else if(operation.symbol == ">"){
 					ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-							" (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+							" (.a("<< first_operand<<"),.b(" << second_operand 
 					<<"),.eq(0),.lt(0),.gt("<< operation.result <<"));";
         }
 	      else if(operation.symbol == "<"){
 					ss << moduleName << " # (.DATAWIDTH("<< operation.width <<")) " << operation.opType << "_" << count <<
-							" (.a("<< operation.operands[0]<<"),.b(" << operation.operands[1] 
+							" (.a("<< first_operand<<"),.b(" << second_operand 
 					<<"),.eq(0),.lt("<< operation.result <<"),.gt(0));";
         }									   
     }

@@ -23,6 +23,7 @@ int main(int argc, char** argv) {
     std::string moduleName = fs::path(netlistFilePath).stem().string();
 
     NetlistParser parser(netlistFilePath);
+    parser.modifyModuleName(moduleName);
     parser.parse();
     VerilogGenerator generator(parser.getComponents(), parser.getOperations());
     generator.generateVerilog(outputFilePath, moduleName); // Now correctly passing both arguments

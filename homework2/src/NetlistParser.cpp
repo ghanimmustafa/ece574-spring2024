@@ -29,7 +29,9 @@ void NetlistParser::parse() {
                 wireComponent.width = component.width; // Set the width according to the component
                 wireComponent.isSigned = component.isSigned; // Set the signedness according to the component
                 components.push_back(wireComponent);
+                #if defined(ENABLE_LOGGING)  
                 std::cout << "Declared wire component: " << wireOperand << " with width " << component.width << (component.isSigned ? ", signed" : ", unsigned") << "\n";
+                #endif 
             }
 
             // Add a registration operation for the output component
@@ -43,12 +45,32 @@ void NetlistParser::parse() {
 
             // Set the isReg flag for the output component
             component.isReg = true;
+            // Replace other operations using the output as an operand with the new wire         
+        }
+ 
+    }
+ 
+    // Replace operands in operations with the new wire if necessary
+    for (auto& operation : operations) {
+        for (auto& operand : operation.operands) {
+            // Check if operand matches any output component that has been registered
+            auto it = std::find_if(components.begin(), components.end(), [&](const Component& comp) {
+                return comp.name == operand && comp.type == "output" && comp.isReg;
+            });
+
+            if (it != components.end()) {
+                // If found, replace the operand with its corresponding wire
+                std::string wireOperand = it->name + "wire";
+                operand = wireOperand;
+                std::cerr << "Multi-driven pin detected and resolved for " << it->name << ". Replaced with " << wireOperand << std::endl;
+            }
         }
     }
-    // After parsing all components
+    #if defined(ENABLE_LOGGING)  
     for (const auto& component : components) {
         std::cout << "Component: " << component.name << ", isReg: " << (component.isReg ? "true" : "false") << std::endl;
-    }       
+    }
+    #endif       
 }
 bool isNumeric(const std::string& str);
 bool isExactlyOne(const std::string& str);  
@@ -59,6 +81,26 @@ bool isOnlyWhitespace(const std::string& str);
 #include <string>
 #include <vector>
 #include <set>
+
+void NetlistParser::modifyModuleName(std::string& moduleName) {
+    // Check for leading digits and remove them
+    moduleName.erase(0, moduleName.find_first_not_of("0123456789"));
+
+    // Remove special characters and the character before them
+    for (size_t i = 0; i < moduleName.size(); ++i) {
+        if (!std::isalnum(moduleName[i])) {
+            if (i > 0) {
+                moduleName.erase(i - 1, 1); // Remove the character before the special character
+                // Update 'i' as we removed a character
+                --i;
+            }
+            moduleName.erase(i, 1); // Remove the special character
+            // Decrement 'i' to recheck the character that moved into the current position
+            --i;
+        }
+    }
+}
+
 
 int NetlistParser::determineOperationWidth(const std::string& opType, const std::vector<std::string>& operands, const std::string& result) {
     int maxWidth = 0;
@@ -199,7 +241,9 @@ void NetlistParser::parseLine(const std::string& line) {
                     components.push_back(component);
                     componentWidths[componentName] = width; // Update componentWidths map
                     componentSignedness[componentName] = isSigned; // Track signedness of components
+                    #if defined(ENABLE_LOGGING)
                     std::cout << "Parsed " << word << ": " << componentName << " with width " << width << (component.isSigned ? ", signed" : ", unsigned") << "\n"; 
+                    #endif
                 }
             }
 
@@ -260,12 +304,14 @@ void NetlistParser::parseLine(const std::string& line) {
                 // Here you might want to call determineOperationWidth or assign a width directly
                 operation.width = determineOperationWidth(operation.opType, operation.operands,operation.result);
                 operation.isSigned = determineOperationSign(operation.opType, operation.operands,operation.result);
-                std::cout << " operation.width:"  << operation.width << "\n";
                 operations.push_back(operation);
+                #if defined(ENABLE_LOGGING)
+                std::cout << " operation.width:"  << operation.width << "\n";
+              
                 std::cout << "Parsed operation: " << result << " = " << leftOperand << " " << opSymbol << " " << rightOperand << "\n";
                 if (opSymbol == "?") 
                 std::cout << "Parsed MUX: " << result << " = " << leftOperand << " " << opSymbol << " " << rightOperand <<  " " << colon <<  " " << mux_right << "\n";
-            
+                #endif
             }
 
             
