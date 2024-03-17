@@ -27,11 +27,10 @@ int main(int argc, char** argv) {
     VerilogGenerator generator(parser.getComponents(), parser.getOperations());
     generator.generateVerilog(outputFilePath, moduleName); // Now correctly passing both arguments
   
-    Graph *graph = new Graph(parser.getComponents(), parser.getOperations());
-    //std::cout << *graph << std::endl;
+    Graph *graph = new Graph(parser.getOperations());
     double critical_path = graph->longest_path();
+    
     std::cout << "Critical Path : " << critical_path << " ns" << std::endl << std::endl;  
-
     std::cout << "Verilog code generated successfully for module " << moduleName << ".\n";
     return 0;
 }

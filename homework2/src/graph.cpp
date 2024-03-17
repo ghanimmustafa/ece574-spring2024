@@ -63,6 +63,55 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
     return os;
 }
 
+Graph::Graph(std::vector<Operation> operations){
+
+    this->source_node = new Node("Source");
+    this->sink_node = new Node("Sink");
+
+    // Generate dependencies and insert source and sink nodes
+    this->generate_components_and_dependencies(operations);
+    this->vertices.insert(this->vertices.begin(), source_node);
+    this->vertices.push_back(sink_node);
+    // Resolve dependencies between source-sink node and other nodes 
+    this->resolve_dependencies();
+
+    // Label the REGs which are output registers to later exclude them from critical path
+    for (const auto& vertex : this->vertices) {
+        if(vertex->next.size() != 0){
+            if(vertex->type == "REG" && vertex->next.at(0)->name == "Sink"){
+                vertex->last_reg = 1;
+            }
+        }
+    }
+}
+
+void Graph::generate_components_and_dependencies(std::vector<Operation> operations){
+
+    // Add each datapath component as a node to the graph
+    int id = 0;
+    for (const auto& operation : operations) {
+        if(operation.opType == "REG"){
+            this->vertices.push_back(new Node(operation.opType + "_" + std::to_string(id), operation.opType, operation.operands, operation.result, operation.width, Reg));
+        }else{
+            this->vertices.push_back(new Node(operation.opType + "_" + std::to_string(id), operation.opType, operation.operands, operation.result, operation.width));
+        }
+        id++;
+    }
+
+    // Form the dependencies by looking at inputs and outputs of components 
+    for (const auto& producer_vertex : this->vertices) {
+        std::string producer_output = producer_vertex->output;
+        for (const auto& consumer_vertex : this->vertices) {
+            for (const auto& consumer_input : consumer_vertex->inputs) {
+                if(consumer_input == producer_output){
+                    producer_vertex->setNext(consumer_vertex);
+                    consumer_vertex->setPrev(producer_vertex);
+                }
+            }
+        }
+    }
+}
+
 void Graph::resolve_dependencies(){
     for (const auto& vertex : this->vertices) {
         if(vertex->prev.size() == 0 && vertex->name != "Source" && vertex->name != "Sink"){
@@ -76,9 +125,12 @@ void Graph::resolve_dependencies(){
     }
 }
 
+// All operations below are taken from the class notes and detailed information can be found there
+// Algorithm in class notes was not taking input-to-register delay into account, we added another attribute called latency_type to support that
+// Latency type basically deceives the algorithm by saying that input components are register to include them in the path while they are not
 std::vector<Node*> Graph::topological_sort(std::vector<Node*> list, Node* vertex){
-    for (const auto& element : this->vertices) {
-        element->color = White;
+    for (const auto& sub_vertex : this->vertices) {
+        sub_vertex->color = White;
     }
     list = this->TS_visit(list, vertex);
     return list;
@@ -122,7 +174,7 @@ double Graph::longest_path(){
                 }
             }
             for (const auto& sub_vertex : list) {
-                if(sub_vertex->latency_type == 0 && sub_vertex->distance > max){
+                if(sub_vertex->distance > max){
                     max = sub_vertex->distance;
                 }
             }
@@ -131,67 +183,22 @@ double Graph::longest_path(){
     return max;
 }
 
-Graph::Graph(std::vector<Component> components, std::vector<Operation> operations){
-
-    this->source_node = new Node("Source");
-    this->sink_node = new Node("Sink");
-
-    //this->vertices.push_back(source_node);
-    this->generate_components_and_dependencies(components, operations);
-    this->vertices.insert(this->vertices.begin(), source_node);
-    this->vertices.push_back(sink_node);
-    this->resolve_dependencies();
-
-    for (const auto& vertex : this->vertices) {
-        if(vertex->next.size() != 0){
-            if(vertex->type == "REG" && vertex->next.at(0)->name == "Sink"){
-                vertex->last_reg = 1;
-            }
-        }
-    }
-}
-
 std::ostream& operator<<(std::ostream& os, const Graph& graph) {
     os << "Number of vertices:" << graph.vertices.size() << std::endl;
-    for (const auto& element : graph.vertices) {
-        os << *element << std::endl;
-        if(element->prev.size() != 0){
-            for (const auto& element1 : element->prev) {
-                os << "Prev:" << *element1 << std::endl;
+    for (const auto& vertex : graph.vertices) {
+        os << *vertex << std::endl;
+        if(vertex->prev.size() != 0){
+            for (const auto& sub_vertex : vertex->prev) {
+                os << "Prev:" << *sub_vertex << std::endl;
             }
         }
-        if(element->next.size() != 0){
-            for (const auto& element1 : element->next) {
-                os << "Next:" << *element1 << std::endl;
+        if(vertex->next.size() != 0){
+            for (const auto& sub_vertex : vertex->next) {
+                os << "Next:" << *sub_vertex << std::endl;
             }
         }
         os << std::endl;
     }
     os << std::endl;
     return os;
-}
-
-void Graph::generate_components_and_dependencies(std::vector<Component> components, std::vector<Operation> operations){
-
-    int id = 0;
-    for (const auto& operation : operations) {
-        if(operation.opType == "REG"){
-            this->vertices.push_back(new Node(operation.opType + "_" + std::to_string(id), operation.opType, operation.operands, operation.result, operation.width, Reg));
-        }else{
-            this->vertices.push_back(new Node(operation.opType + "_" + std::to_string(id), operation.opType, operation.operands, operation.result, operation.width));
-        }
-        id++;
-    }
-
-    for (const auto& producer_vertex : this->vertices) {
-        std::string producer_output = producer_vertex->output;
-        for (const auto& consumer_vertex : this->vertices) {
-            for (const auto& consumer_input : consumer_vertex->inputs) {
-                if(consumer_input == producer_output){
-                    producer_vertex->setNext(consumer_vertex);
-                    consumer_vertex->setPrev(producer_vertex);
-                }
-            }
-        }
-    }
 }
