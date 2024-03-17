@@ -16,6 +16,7 @@ Node::Node(std::string name, std::string type, std::vector<std::string> inputs, 
     this->latency_type = Not_Reg;
     this->distance = 0.0;
     this->init_distance = latency_values[type].values[bidwidths[datawidth]];
+    this->last_reg = 0;
 }
 
 Node::Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, Latency_type latency_type) {
@@ -28,6 +29,7 @@ Node::Node(std::string name, std::string type, std::vector<std::string> inputs, 
     this->latency_type = latency_type;
     this->distance = 0.0;
     this->init_distance = latency_values[type].values[bidwidths[datawidth]];
+    this->last_reg = 0;
 }
 
 Node::Node(std::string name) {
@@ -56,7 +58,7 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
             }
             os << ", output: " << node.output <<", datawidth: " << node.datawidth <<
             ", color: " << node.color << ", latency_type: " << node.latency_type << 
-            ", distance:" <<node.distance << " }";
+            ", distance:" << node.distance << ", last_reg:" << node.last_reg << " }";
     }
     return os;
 }
@@ -111,8 +113,10 @@ double Graph::longest_path(){
             for (const auto& sub_vertex : list) {
                 if((sub_vertex->latency_type == 0 && sub_vertex == vertex) || sub_vertex->latency_type == 1){
                     for (const auto& adjVertex : sub_vertex->next) {
-                        if((sub_vertex->distance  + latency_values[adjVertex->type].values[bidwidths[adjVertex->datawidth]]) > adjVertex->distance){
+                        if(((sub_vertex->distance + latency_values[adjVertex->type].values[bidwidths[adjVertex->datawidth]]) > adjVertex->distance) && adjVertex->type != "REG"){
                             adjVertex->distance = sub_vertex->distance + latency_values[adjVertex->type].values[bidwidths[adjVertex->datawidth]];
+                        }else if(((sub_vertex->distance  + latency_values[adjVertex->type].values[bidwidths[adjVertex->datawidth]]) > adjVertex->distance) && adjVertex->type == "REG"){
+                            adjVertex->distance = sub_vertex->distance;
                         }
                     }
                 }
@@ -137,6 +141,14 @@ Graph::Graph(std::vector<Component> components, std::vector<Operation> operation
     this->vertices.insert(this->vertices.begin(), source_node);
     this->vertices.push_back(sink_node);
     this->resolve_dependencies();
+
+    for (const auto& vertex : this->vertices) {
+        if(vertex->next.size() != 0){
+            if(vertex->type == "REG" && vertex->next.at(0)->name == "Sink"){
+                vertex->last_reg = 1;
+            }
+        }
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const Graph& graph) {
@@ -160,11 +172,6 @@ std::ostream& operator<<(std::ostream& os, const Graph& graph) {
 }
 
 void Graph::generate_components_and_dependencies(std::vector<Component> components, std::vector<Operation> operations){
-
-    /*for (const auto& element : components) {
-        std::cout << "Component { name: " << element.name << ", type: " << element.type <<
-                ", width: " << element.width << ", isSigned: " << element.isSigned << " }" << std::endl;
-    }*/
 
     int id = 0;
     for (const auto& operation : operations) {

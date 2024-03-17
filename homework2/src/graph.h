@@ -33,6 +33,7 @@ public:
     Latency_type latency_type;
     float distance;
     float init_distance;
+    int64_t last_reg;
 
     std::vector<Node*> next;
     std::vector<Node*> prev;
