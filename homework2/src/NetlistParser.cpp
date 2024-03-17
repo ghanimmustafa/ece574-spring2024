@@ -220,9 +220,9 @@ void NetlistParser::parseLine(const std::string& line) {
                     std::exit(EXIT_FAILURE);
                 }          
                 // Remove semicolon if present in rightOperand
-                if (rightOperand.back() == ';')
+                if (!rightOperand.empty() && rightOperand.back() == ';')
                     rightOperand.pop_back();
-                if (mux_right.back() == ';')
+		if (!mux_right.empty() && mux_right.back() == ';')
                     mux_right.pop_back();      
                 Operation operation;
                 operation.result = result;
