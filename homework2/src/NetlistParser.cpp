@@ -28,7 +28,9 @@ void NetlistParser::parse() {
                 wireComponent.name = wireOperand;
                 wireComponent.width = component.width; // Set the width according to the component
                 wireComponent.isSigned = component.isSigned; // Set the signedness according to the component
+                wireComponent.isNew = true;
                 components.push_back(wireComponent);
+
                 #if defined(ENABLE_LOGGING)  
                 std::cout << "Declared wire component: " << wireOperand << " with width " << component.width << (component.isSigned ? ", signed" : ", unsigned") << "\n";
                 #endif 

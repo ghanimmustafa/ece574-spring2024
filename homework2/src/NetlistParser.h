@@ -30,6 +30,7 @@ struct Component {
     int width;
     bool isSigned;
     bool isReg = false;
+    bool isNew = false;
 };
 
 // Represents an operation in the netlist (e.g., ADD, SUB, MUL)
