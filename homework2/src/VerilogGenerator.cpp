@@ -156,7 +156,10 @@ std::string VerilogGenerator::generateOperationCode(const Operation& operation) 
                 // For MUX2x1 operation, modify the third operand to take only its LSB
                 if (operation.opType == "MUX2x1" && operand == operation.operands[0] && operandWidth >= 1) {
                     if (operandWidth > 1) {
-                        extended_operand += "[0]";
+                        extended_operand = operand + "[0]";
+                    }
+                    else if (operandWidth == 1) {
+                        extended_operand = operand;
                     }
                 }
 
@@ -167,7 +170,6 @@ std::string VerilogGenerator::generateOperationCode(const Operation& operation) 
         // Return original operand if not found in components
         return operand;
     };
-
 
 
 
@@ -202,7 +204,7 @@ std::string VerilogGenerator::generateOperationCode(const Operation& operation) 
      // In-place modification of operands
     // Modify operands based on availability
     int index;
-    if (operation.operands.size() > 0) {
+    if (operation.operands.size() > 0) {        
         index = 1;
         first_operand = bit_extension_and_sign_check(operation.operands[0],index);
 
@@ -263,7 +265,7 @@ std::string VerilogGenerator::generateOperationCode(const Operation& operation) 
             // Operand is unsigned or not found, use it directly
             ss << second_operand;
         }
-        ss << second_operand;
+        //std::cout << "SH DEBUG" << second_operand <<std::endl;
         ss << "),.d(" << operation.result << "));";
     }
 
