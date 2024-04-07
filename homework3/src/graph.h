@@ -19,6 +19,7 @@ public:
     int64_t datawidth;
 
     // Attributes for force scheduling algorithm
+    int64_t latency_requirement;
     int64_t depth;
     int64_t asap_time;
     int64_t alap_time;
@@ -28,7 +29,7 @@ public:
     std::vector<Node*> prev;
 
     // Constructors
-    Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth);
+    Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, int64_t latency_requirement);
     Node(std::string name);
     // Setters for dependencies
     void setNext(Node* node);
@@ -65,6 +66,7 @@ public:
     void force_directed_scheduler();
 
     void print_asap();
+    void print_alap();
 
 };
 

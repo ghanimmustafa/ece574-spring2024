@@ -5,7 +5,7 @@
 
 #include "graph.h"
 
-Node::Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth) {
+Node::Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, int64_t latency_requirement) {
     this->name = name;
     this->type = type;
     this->inputs = inputs;
@@ -14,15 +14,12 @@ Node::Node(std::string name, std::string type, std::vector<std::string> inputs, 
 
     this->depth = 1;
     this->asap_time = 0;
-    this->alap_time = 0;
+    this->alap_time = latency_requirement;
 }
 
+// No need to set anything related to scheduling since this constructor is only for source or sink node
 Node::Node(std::string name) {
     this->name = name;
-
-    this->depth = 1;
-    this->asap_time = 0;
-    this->alap_time = 0;
 }
 
 void Node::setNext(Node* node) {
@@ -78,7 +75,7 @@ void Graph::generate_components_and_dependencies(std::vector<Operation> operatio
         //if(operation.opType == "REG"){
             //this->vertices.push_back(new Node(operation.opType + "_" + std::to_string(id), operation.opType, operation.operands, operation.result, operation.width, Reg));
         //}else{
-            this->vertices.push_back(new Node(operation.opType + "_" + std::to_string(id), operation.opType, operation.operands, operation.result, operation.width));
+            this->vertices.push_back(new Node(operation.opType + "_" + std::to_string(id), operation.opType, operation.operands, operation.result, operation.width, this->latency_requirement));
         //}
         id++;
     }
@@ -137,8 +134,20 @@ void Graph::asap_scheduler(){
 }
 
 void Graph::alap_scheduler(){
-    for (const auto& vertex : this->vertices) {
-        vertex->alap_time = this->latency_requirement - vertex->asap_time;
+    this->print_asap();
+    int alap_time = this->latency_requirement;
+    for (int iter = this->vertices.size() - 1; iter >= 0; iter--) {
+        int smallest_alap = 1000;
+        if(this->vertices.at(iter)->next.size() == 0){
+            continue;
+        }else{
+            for (const auto& vertex : this->vertices.at(iter)->next) {
+                if(vertex->alap_time < smallest_alap){
+                    smallest_alap = vertex->alap_time;
+                }
+            }
+        this->vertices.at(iter)->alap_time = smallest_alap - 1;
+        }
     }
 }
 
@@ -188,9 +197,9 @@ void Graph::temporary_graph_former(std::string filename){
                 inputs.push_back(words.at(2));
                 inputs.push_back(words.at(3));
                 if(words.at(1) == "REG"){
-                    this->vertices.push_back(new Node(words.at(0), words.at(1), inputs, words.at(4), std::stoll(words.at(5))));
+                    this->vertices.push_back(new Node(words.at(0), words.at(1), inputs, words.at(4), std::stoll(words.at(5)), this->latency_requirement));
                 }else{
-                    this->vertices.push_back(new Node(words.at(0), words.at(1), inputs, words.at(4), std::stoll(words.at(5))));
+                    this->vertices.push_back(new Node(words.at(0), words.at(1), inputs, words.at(4), std::stoll(words.at(5)), this->latency_requirement));
                 }
             }else if(mode == 2){
                 std::istringstream iss(line);
@@ -229,5 +238,12 @@ void Graph::print_asap(){
     std::cout << "ASAP Scheduling:" << std::endl;
     for (const auto& vertex : this->vertices) {
         std::cout << "Time " << vertex->asap_time << ": " << vertex->name << std::endl;
+    }
+}
+
+void Graph::print_alap(){
+    std::cout << "ALAP Scheduling:" << std::endl;
+    for (const auto& vertex : this->vertices) {
+        std::cout << "Time " << vertex->alap_time << ": " << vertex->name << std::endl;
     }
 }

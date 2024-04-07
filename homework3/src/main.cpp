@@ -28,6 +28,7 @@ int main(int argc, char** argv) {
     std::cout << *graph;
 
     graph->print_asap();
+    graph->print_alap();
 
     exit(0);
     /*if (argc != 4) {
