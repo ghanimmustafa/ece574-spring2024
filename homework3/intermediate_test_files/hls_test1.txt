@@ -1,0 +1,19 @@
+# Name, type, inputs, output, datawidth
+
+/ 
+ADD1 ADD a b d 8
+ADD2 ADD a c e 8
+MUL1 MUL a c f 8
+SUB1 SUB d f x 16
+COMP1 COMP d e g 8
+COMP2 COMP d e z 8
+
+# Dependencies
+-
+ADD1 COMP1
+ADD1 COMP2
+ADD1 SUB1
+ADD2 COMP1
+ADD2 COMP2
+MUL1 SUB1
+COMP1 COMP2
