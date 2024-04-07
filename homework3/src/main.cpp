@@ -7,7 +7,7 @@
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv) {
-
+    /*
     if (argc != 4) {
         std::cerr << "Usage: " << argv[0] << " <cFile> <latency> <verilogFile>\n";
         return 1;
@@ -31,7 +31,9 @@ int main(int argc, char** argv) {
     graph->print_alap();
 
     exit(0);
-    /*if (argc != 4) {
+    */    
+
+    if (argc != 4) {
         std::cerr << "Usage: " << argv[0] << " <cFile> <latency> <verilogFile>\n";
         return 1;
     }
@@ -44,8 +46,9 @@ int main(int argc, char** argv) {
         return 2; 
     }   
     std::string moduleName = fs::path(cFilePath).stem().string();
+    OperationGraph opGraph;
 
-    NetlistParser parser(cFilePath);
+    NetlistParser parser(cFilePath,opGraph);
     parser.modifyModuleName(moduleName);
     parser.parse();
 
@@ -57,7 +60,22 @@ int main(int argc, char** argv) {
     for (int i = 0; i < parser.getOperations().size(); ++i) {
         std::cout << parser.getOperations()[i].symbol << ":" << parser.getOperations()[i].opType << std::endl;
     }
-    std::cout << std::endl;*/
+    std::cout << std::endl;
+   // Now, generate the Graphviz file to visualize the operation graph
+   // Construct the .dot file name based on moduleName
+    std::string dotFileName = moduleName+"_operations_flow.dot";
+    std::string pngFileName = moduleName+"_operations_flow.png";
+    opGraph.generateGraphviz(moduleName+"_operations_flow.dot");
+    std::cout << "Graphviz file generated. Convert 'operation_graph.dot' to an image using Graphviz tools." << std::endl;
+    // The command to execute
+    std::string command = "dot -Tpng " + dotFileName + " -o " + pngFileName;
 
+    // Execute the command using std::system
+    int result = std::system(command.c_str());
+
+    if (result != 0) {
+        // The command failed; you can handle the error as needed
+        std::cerr << "Failed to execute command: " << command << std::endl;
+    }    
     return 0;
 }

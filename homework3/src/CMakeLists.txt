@@ -10,5 +10,5 @@ set(SOURCES
 add_executable(hlsyn ${SOURCES})
 # If logging is enabled, add the corresponding compiler flag
 if(ENABLE_LOGGING)
-    target_compile_definitions(dpgen PRIVATE ENABLE_LOGGING)
+    target_compile_definitions(hlsyn PRIVATE ENABLE_LOGGING)
 endif()

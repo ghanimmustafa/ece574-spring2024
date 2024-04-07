@@ -4,7 +4,7 @@
 #include <iostream>
 #include <regex>
 
-NetlistParser::NetlistParser(const std::string& filePath) : filePath(filePath) {}
+NetlistParser::NetlistParser(const std::string& filePath,OperationGraph& opGraph) : filePath(filePath), operationGraph(opGraph) {}
 
 void NetlistParser::parse() {
     std::ifstream file(filePath);
@@ -102,6 +102,57 @@ void NetlistParser::modifyModuleName(std::string& moduleName) {
         }
     }
 }
+// Trim leading and trailing whitespaces from a string
+std::string trim(const std::string& str) {
+    // Find the first non-whitespace character from the beginning
+    auto start = std::find_if(str.begin(), str.end(), [](int c) {
+        return !std::isspace(static_cast<unsigned char>(c));
+    });
+
+    // Find the first non-whitespace character from the end
+    auto end = std::find_if(str.rbegin(), str.rend(), [](int c) {
+        return !std::isspace(static_cast<unsigned char>(c));
+    }).base();
+
+    // Handle empty string case
+    return (start < end ? std::string(start, end) : std::string());
+}
+/*void NetlistParser::parseIfOperations(const std::string& ifStatement, const std::string& condition) {
+    // Here you can parse operations inside the if block and handle the condition
+    // For example, you can create Operation objects, calculate width, signedness, etc.
+    // For simplicity, I'm just printing the information for demonstration
+    std::cout << "Parsing operations inside if block with condition: " << condition << std::endl;
+    std::cout << "Statement inside if block: " << ifStatement << std::endl;
+
+    // Parse the condition
+    std::istringstream conditionStream(condition);
+    std::string leftOperand, opSymbol, rightOperand;
+    conditionStream >> leftOperand >> opSymbol >> rightOperand;
+
+    // Handle the condition (you can implement logic based on your requirements)
+    std::cout << "Condition parsed: " << leftOperand << " " << opSymbol << " " << rightOperand << std::endl;
+
+    // Parse each line of operations inside the if block
+    std::istringstream ifStatementStream(ifStatement);
+    std::string line;
+    while (getline(ifStatementStream, line)) {
+        // Skip empty lines
+        if (line.empty())
+            continue;
+
+        // Trim leading and trailing whitespaces from the line
+        line = trim(line);
+
+        // Check if the line is the closing curly brace '}', indicating the end of the if block
+        if (line == "}") {
+            break;
+        }
+
+        // Parse and handle the operation
+        std::cout << "if-based operation: " << line <<std::endl;
+        parseOperation(line);
+    }
+}*/
 
 
 int NetlistParser::determineOperationWidth(const std::string& opType, const std::vector<std::string>& operands, const std::string& result) {
@@ -133,6 +184,137 @@ int NetlistParser::determineOperationWidth(const std::string& opType, const std:
     return maxWidth;
 }
 
+bool isValidOperand(const std::string& operand, const std::vector<Component>& components) {
+    // Check if the operand is a constant or whitespace
+    if (isNumeric(operand) || isOnlyWhitespace(operand))
+        return true;
+
+    // Check if the operand is inside the components
+    for (const auto& component : components) {
+        if (operand == component.name)
+            return true;
+    }
+
+    // Operand is neither constant, whitespace, nor inside components
+    return false;
+}
+std::unordered_map<int, std::string> lastNodeNameByState;
+
+void NetlistParser::parseOperation(const std::string& operationLine,const std::string& condition, int state, int prev_state) {
+    std::string beforeEq = operationLine.substr(0, operationLine.find('='));
+    std::string afterEq = operationLine.substr(operationLine.find('=') + 1);
+
+    std::string result = beforeEq.substr(0, beforeEq.find(' '));
+    std::istringstream afterEqStream(afterEq);
+
+    std::string leftOperand, opSymbol, rightOperand, colon, mux_right;
+    afterEqStream >> leftOperand >> opSymbol >> rightOperand >> colon >> mux_right;
+
+    // Check if operands are valid
+    if (!isValidOperand(leftOperand, components) || !isValidOperand(result, components) || !isValidOperand(rightOperand, components) || !isValidOperand(mux_right, components)) {
+        std::cerr << "Error: Invalid operand in line: " << operationLine << "\n";
+        std::exit(EXIT_FAILURE);
+    }
+
+    // Remove semicolon if present in rightOperand
+    if (!rightOperand.empty() && rightOperand.back() == ';')
+        rightOperand.pop_back();
+    if (!mux_right.empty() && mux_right.back() == ';')
+        mux_right.pop_back();
+
+    Operation operation;
+    operation.result = result;
+    operation.operands.push_back(leftOperand);
+    operation.operands.push_back(rightOperand);
+    operation.symbol = opSymbol;
+
+    // Utilize the isExactlyOne function to check operands
+    if (opSymbol == "+" && (isExactlyOne(leftOperand) || isExactlyOne(rightOperand))) 
+        operation.opType = "INC"; // Increment operation if one operand is exactly "1"
+    else if (opSymbol == "-" && (isExactlyOne(leftOperand) || isExactlyOne(rightOperand))) 
+        operation.opType = "DEC"; // Decrement operation if one operand is exactly "1"
+    else if (opSymbol == "+") 
+        operation.opType = "ADD"; // Standard addition for other cases
+    else if (opSymbol == "-") 
+        operation.opType = "SUB"; // Standard subtraction for other cases
+    else if (opSymbol == "*") 
+        operation.opType = "MUL";        
+    else if (opSymbol == "/") 
+        operation.opType = "DIV";
+    else if (opSymbol == ">>") 
+        operation.opType = "SHR";        
+    else if (opSymbol == "<<") 
+        operation.opType = "SHL";        
+    else if (opSymbol == "%") 
+        operation.opType = "MOD"; 
+    else if (opSymbol == ">" || opSymbol == "==" || opSymbol == "<") 
+        operation.opType = "COMP";        
+    else if (opSymbol == "?") {
+        operation.opType = "MUX2x1";
+        operation.operands.push_back(mux_right);
+    }   
+    else if (opSymbol == "") {
+        // Find the corresponding component
+        auto resultComponent = std::find_if(components.begin(), components.end(), [&](const Component& comp) { return comp.name == result; });
+
+        // If the result component is found and is registered, assign operation type
+        if (resultComponent != components.end() && !resultComponent->isReg){ 
+            operation.opType = "REG";
+            resultComponent->isReg = true;
+        }    
+    }    
+    else {
+        std::cerr << "Unsupported operation symbol: " << opSymbol << "\n";
+        std::exit(EXIT_FAILURE); // Terminate the program for unsupported symbols
+    }
+
+    // Here you might want to call determineOperationWidth or assign a width directly
+    operation.width = determineOperationWidth(operation.opType, operation.operands, operation.result);
+    operation.isSigned = determineOperationSign(operation.opType, operation.operands, operation.result);
+    operation.condition = condition; // Assign the current condition context to the operation
+    operation.state = state;
+    operation.prev_state = prev_state;
+    // Add operation to the graph as a node
+    std::string nodeName = operation.symbol + ":" + std::to_string(state); // Construct a unique node name/id
+    operation.name = nodeName;
+    operationGraph.addNode(nodeName); // Assuming addNode is a method you might need to add
+    operations.push_back(operation);
+  // Connect to the previous node if this is not the first operation (state > 0)
+    if (state > 0) {
+        // Find the last operation node name for the previous state or the closest state less than the current one
+        std::string prevNodeName;
+        for (int i = state - 1; i >= 0; --i) {
+            if (lastNodeNameByState.find(i) != lastNodeNameByState.end()) {
+                prevNodeName = lastNodeNameByState[i];
+                break;
+            }
+        }
+
+        // If a previous node name is found, add an edge from the previous node to the current node
+        if (!prevNodeName.empty()) {
+            operationGraph.addEdge(prevNodeName, nodeName, ""); // The condition is left empty or could be "sequential"
+        }
+    }
+
+    // Update the tracking map with the current node name for its state
+    lastNodeNameByState[state] = nodeName;
+
+    // If this operation has a condition, add an edge from the condition node to this operation
+    if (!condition.empty()) {
+        std::string conditionNodeName = "Condition: " + condition;
+        operationGraph.addEdge(conditionNodeName, nodeName, condition);
+    } 
+    #if defined(ENABLE_LOGGING)
+    if (opSymbol == "?") 
+        std::cout << "Parsed operation: " << result << " = " << leftOperand << " " << opSymbol << " " << rightOperand <<  " " << colon <<  " " << mux_right << "\t"; 
+    else 
+        std::cout << "Parsed operation: " << result << " = " << leftOperand << " " << opSymbol << " " << rightOperand << "\t";
+    std::cout << " operation.width:"  << operation.width << "\n";
+    std::cout << " operation.condition:"  << operation.condition << "\n";
+
+    #endif
+
+}
 
 
 /*
@@ -157,6 +339,14 @@ int NetlistParser::determineOperationWidth(const std::string& opType, const std:
 }
 
 */
+// Function to remove whitespace characters from a string
+void removeWhitespace(std::string &str) {
+    // Use std::remove_if with std::isspace to remove whitespace characters
+    size_t resultPos = str.find_first_not_of(" \t");
+    if (resultPos != std::string::npos) {
+        str.erase(0, resultPos);
+    }
+}
 bool NetlistParser::determineOperationSign(const std::string& opType, const std::vector<std::string>& operands,const std::string& result) {
      if (componentSignedness.find(result) != componentSignedness.end() && componentSignedness[result]) {
         return true; // Operation is signed if the result is signed
@@ -177,26 +367,9 @@ bool NetlistParser::determineOperationSign(const std::string& opType, const std:
     // Return false if none of the operands are signed
     return false;
 }
-
-bool isValidOperand(const std::string& operand, const std::vector<Component>& components) {
-    // Check if the operand is a constant or whitespace
-    if (isNumeric(operand) || isOnlyWhitespace(operand))
-        return true;
-
-    // Check if the operand is inside the components
-    for (const auto& component : components) {
-        if (operand == component.name)
-            return true;
-    }
-
-    // Operand is neither constant, whitespace, nor inside components
-    return false;
-}
-
+int state = 0;
+int prev_state = -1;
 void NetlistParser::parseLine(const std::string& line) {
-    /*if (line.empty() || line[0] == '#' || line.find("//") != std::string::npos) {
-        return; // Skip empty lines or comments
-    }*/
     size_t commentPos = line.find("//");
 
     //std::istringstream stream(line);
@@ -208,10 +381,8 @@ void NetlistParser::parseLine(const std::string& line) {
         std::istringstream stream(cleanedLine);
         std::string word;
         stream >> word;   
-    //std::string word;
-    //stream >> word;
 
-        if (word == "input" || word == "output" || word == "wire" || word == "register") {
+        if (word == "input" || word == "output" || word == "wire" || word == "variable") {
             std::string dataType;
             stream >> dataType;
             // Check data type validity
@@ -236,6 +407,7 @@ void NetlistParser::parseLine(const std::string& line) {
                 if (!componentName.empty()) {
                     Component component;
                     component.type = word;
+                    if(component.type == "variable") component.isReg = true;
                     component.name = componentName;
                     component.width = width;
                     if(width == 1) component.isSigned = false;
@@ -248,72 +420,30 @@ void NetlistParser::parseLine(const std::string& line) {
                     #endif
                 }
             }
-
+  
         } else {
             // Handling operation lines
-            size_t eqPos = cleanedLine.find('=');
-            if (eqPos != std::string::npos) {
-                std::string beforeEq = cleanedLine.substr(0, eqPos);
-                std::string afterEq = cleanedLine.substr(eqPos + 1);
-                std::string result = beforeEq.substr(0, beforeEq.find(' '));
-                std::istringstream afterEqStream(afterEq);
-                std::string leftOperand, opSymbol, rightOperand,colon, mux_right;
 
-                afterEqStream >> leftOperand >> opSymbol >> rightOperand >> colon >>  mux_right;
-                // Check if operands are valid
-                if (!isValidOperand(leftOperand, components) || !isValidOperand(result, components) || !isValidOperand(rightOperand, components) || !isValidOperand(mux_right, components)) {
-                    std::cerr << "Error: Invalid operand in line: " << line << "\n";
-                    std::exit(EXIT_FAILURE);
-                }          
-                // Remove semicolon if present in rightOperand
-                if (!rightOperand.empty() && rightOperand.back() == ';')
-                    rightOperand.pop_back();
-		if (!mux_right.empty() && mux_right.back() == ';')
-                    mux_right.pop_back();      
-                Operation operation;
-                operation.result = result;
-                operation.operands.push_back(leftOperand);
-                operation.operands.push_back(rightOperand);
-                operation.symbol = opSymbol;
-                // Utilize the isExactlyOne function to check operands
-                if (opSymbol == "+" && (isExactlyOne(leftOperand) || isExactlyOne(rightOperand))) operation.opType = "INC"; // Increment operation if one operand is exactly "1"
-                else if (opSymbol == "-" && (isExactlyOne(leftOperand) || isExactlyOne(rightOperand))) operation.opType = "DEC"; // Decrement operation if one operand is exactly "1
-                else if (opSymbol == "+") operation.opType = "ADD"; // Standard addition for other cases
-                else if (opSymbol == "-") operation.opType = "SUB"; // Standard subtraction for other cases
-                else if (opSymbol == "*") operation.opType = "MUL";        
-                else if (opSymbol == "/") operation.opType = "DIV";
-                else if (opSymbol == ">>") operation.opType = "SHR";        
-                else if (opSymbol == "<<") operation.opType = "SHL";        
-                else if (opSymbol == "%") operation.opType = "MOD";        
-                else if (opSymbol == ">" || opSymbol == "==" || opSymbol == "<") operation.opType = "COMP";        
-                else if (opSymbol == "?") {operation.opType = "MUX2x1";operation.operands.push_back(mux_right);}   
-                else if (opSymbol == "") {
-                    // Find the corresponding component
-                    auto resultComponent = std::find_if(components.begin(), components.end(), [&](const Component& comp) { return comp.name == result; });
+            std::cout << cleanedLine << std::endl;
+            removeWhitespace(cleanedLine); 
+            if (cleanedLine.find("if") != std::string::npos) {
+                // Correctly extract the condition when entering an 'if' block
+                currentCondition = cleanedLine.substr(cleanedLine.find("(") + 1, cleanedLine.find(")") - cleanedLine.find("(") - 1);
+                // Print the current condition for debugging
+                std::cout << "Entering IF block, condition: " << currentCondition << std::endl;
+                state++;
+            }
+            else if (cleanedLine.find("}") != std::string::npos) {
+                // Correctly clear the condition after exiting an 'if' block
+                std::cout << "Exiting IF block, clearing condition: " << currentCondition << std::endl;
+                currentCondition.clear();
+            }
+            else{  
+              size_t eqPos = cleanedLine.find('=');
+              if (eqPos != std::string::npos) {
+                parseOperation(cleanedLine,currentCondition,state++,prev_state++);  
 
-                    // If the result component is found and is registered, assign operation type
-                    if (resultComponent != components.end() && !resultComponent->isReg){ 
-                        operation.opType = "REG";
-                        resultComponent->isReg = true;
-                    }    
-                }    
-                
-                else {
-                    std::cerr << "Unsupported operation symbol: " << opSymbol << "\n";
-                    std::exit(EXIT_FAILURE); // Terminate the program for unsupported symbols
-                }
-
-                // Here you might want to call determineOperationWidth or assign a width directly
-                operation.width = determineOperationWidth(operation.opType, operation.operands,operation.result);
-                operation.isSigned = determineOperationSign(operation.opType, operation.operands,operation.result);
-                operations.push_back(operation);
-                #if defined(ENABLE_LOGGING)
-                std::cout << " operation.width:"  << operation.width << "\n";
-              
-                std::cout << "Parsed operation: " << result << " = " << leftOperand << " " << opSymbol << " " << rightOperand << "\n";
-                if (opSymbol == "?") 
-                std::cout << "Parsed MUX: " << result << " = " << leftOperand << " " << opSymbol << " " << rightOperand <<  " " << colon <<  " " << mux_right << "\n";
-                #endif
+              }
             }
 
             
