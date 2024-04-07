@@ -64,6 +64,8 @@ public:
     void alap_scheduler();
     void force_directed_scheduler();
 
+    void print_asap();
+
 };
 
 #endif

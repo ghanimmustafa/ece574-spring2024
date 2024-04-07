@@ -26,6 +26,9 @@ int main(int argc, char** argv) {
     graph->force_directed_scheduler();
 
     std::cout << *graph;
+
+    graph->print_asap();
+
     exit(0);
     /*if (argc != 4) {
         std::cerr << "Usage: " << argv[0] << " <cFile> <latency> <verilogFile>\n";

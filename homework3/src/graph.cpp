@@ -224,3 +224,10 @@ void Graph::temporary_graph_former(std::string filename){
     delete node2;
 
 }
+
+void Graph::print_asap(){
+    std::cout << "ASAP Scheduling:" << std::endl;
+    for (const auto& vertex : this->vertices) {
+        std::cout << "Time " << vertex->asap_time << ": " << vertex->name << std::endl;
+    }
+}
