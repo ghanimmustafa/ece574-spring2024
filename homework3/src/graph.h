@@ -23,6 +23,9 @@ public:
     int64_t depth;
     int64_t asap_time;
     int64_t alap_time;
+    int64_t time_frame[2];
+    int64_t fds_width;
+    std::vector<double> fds_prob;
 
     // Next and previous node arrays to keep track of dependencies between datapath components
     std::vector<Node*> next;
@@ -67,7 +70,20 @@ public:
 
     void print_asap();
     void print_alap();
+    void print_time_frames();
+    void print_fds_prob();
 
+};
+
+class FDS{
+    public:
+        Graph *graph;
+        int64_t latency_requirement;
+
+        FDS(Graph *graph, int64_t latency_requirement);
+        void run_force_directed_scheduler();
+        void assign_time_frames();
+        void calculate_fds_prob();
 };
 
 #endif

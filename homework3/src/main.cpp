@@ -29,6 +29,10 @@ int main(int argc, char** argv) {
 
         graph->print_asap();
         graph->print_alap();
+        graph->print_time_frames();
+        graph->print_fds_prob();
+
+        delete graph;
 
         return 0;
 

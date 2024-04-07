@@ -15,6 +15,13 @@ Node::Node(std::string name, std::string type, std::vector<std::string> inputs, 
     this->depth = 1;
     this->asap_time = 0;
     this->alap_time = latency_requirement;
+    this->time_frame[0] = 0;
+    this->time_frame[1] = 0;
+    this->fds_width = 0;
+
+    for (int iter = 0; iter < latency_requirement; iter++) {
+        fds_prob.push_back(0.0);
+    }
 }
 
 // No need to set anything related to scheduling since this constructor is only for source or sink node
@@ -40,7 +47,8 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
             }
             os << ", output: " << node.output <<", datawidth: " << node.datawidth << 
             ", depth: " << node.depth << ", asap_time: " << node.asap_time << 
-            ", alap_time: " << node.alap_time << " }";
+            ", alap_time: " << node.alap_time << ", time_frame: [" << node.time_frame[0] <<
+            "," << node.time_frame[1] << "]" << ", " << node.fds_width <<  " }";
     }
     return os;
 }
@@ -154,6 +162,11 @@ void Graph::alap_scheduler(){
 void Graph::force_directed_scheduler(){
     this->asap_scheduler();
     this->alap_scheduler();
+
+    FDS *fds = new FDS(this, this->latency_requirement);
+    fds->run_force_directed_scheduler();
+
+    delete fds;
 }
 
 Graph::Graph(int64_t latency_requirement){
@@ -245,5 +258,50 @@ void Graph::print_alap(){
     std::cout << "ALAP Scheduling:" << std::endl;
     for (const auto& vertex : this->vertices) {
         std::cout << "Time " << vertex->alap_time << ": " << vertex->name << std::endl;
+    }
+}
+
+void Graph::print_time_frames(){
+    std::cout << "FDS time frames:" << std::endl;
+    for (const auto& vertex : this->vertices) {
+        std::cout << vertex->name << ": [" << vertex->time_frame[0] << "," << vertex->time_frame[1] << "]" << ", " << vertex->fds_width <<  std::endl;
+    }
+}
+
+void Graph::print_fds_prob(){
+    std::cout << "FDS operation probabilities:" << std::endl;
+    for (const auto& vertex : this->vertices) {
+        std::cout << vertex->name << ":" << std::endl; 
+        for (int iter = 0; iter < this->latency_requirement; iter++) {
+            std::cout << iter+1 << ":" << vertex->fds_prob.at(iter) << std::endl;
+        }
+    }
+}
+
+FDS::FDS(Graph* graph, int64_t latency_requirement){
+    this->graph = graph;
+    this->latency_requirement = latency_requirement;
+
+}
+
+void FDS::run_force_directed_scheduler(){
+    this->assign_time_frames();
+    this->calculate_fds_prob();
+}
+
+void FDS::assign_time_frames(){
+    for (const auto& vertex : this->graph->vertices) {
+        vertex->time_frame[0] = vertex->asap_time;
+        vertex->time_frame[1] = vertex->alap_time;
+        vertex->fds_width = vertex->time_frame[1] - vertex->time_frame[0] + 1;
+    }
+}
+
+void FDS::calculate_fds_prob(){
+    for (const auto& vertex : this->graph->vertices) {
+        double prob = 1.0 / vertex->fds_width;
+        for(int iter = vertex->time_frame[0]; iter < vertex->time_frame[1]+1; iter++){
+            vertex->fds_prob.at(iter-1) = prob;
+        }
     }
 }
