@@ -1,0 +1,25 @@
+# Name, type, inputs, output, datawidth
+
+/ 
+MUL1 MUL a b k 8
+MUL2 MUL c d l 8
+MUL3 MUL e f m 8
+MUL4 MUL g h n 8
+ADD1 ADD_SUB i j o 8
+MUL5 MUL k l p 8
+MUL6 MUL m i1 r 8
+ADD2 ADD_SUB n i2 x 8
+COMP1 LOG o i3 z 8
+SUB1 ADD_SUB p i4 s 8
+SUB2 ADD_SUB s r y 8
+
+# Dependencies
+-
+MUL1 MUL5
+MUL2 MUL5
+MUL3 MUL6
+MUL4 ADD2
+ADD1 COMP1
+MUL5 SUB1
+SUB1 SUB2
+MUL6 SUB2

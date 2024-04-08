@@ -142,7 +142,6 @@ void Graph::asap_scheduler(){
 }
 
 void Graph::alap_scheduler(){
-    this->print_asap();
     int alap_time = this->latency_requirement;
     for (int iter = this->vertices.size() - 1; iter >= 0; iter--) {
         int smallest_alap = 1000;
@@ -163,6 +162,10 @@ void Graph::force_directed_scheduler(){
     this->asap_scheduler();
     this->alap_scheduler();
 
+#if defined(ENABLE_LOGGING)  
+    this->print_asap();
+    this->print_alap();
+#endif
     FDS *fds = new FDS(this, this->latency_requirement);
     fds->run_force_directed_scheduler();
 
@@ -230,7 +233,10 @@ void Graph::temporary_graph_former(std::string filename){
 
                     if (node1 && node2) {
                         node1->setNext(node2);
-                        node2->depth = node1->depth + 1;
+                        if (node1->depth + 1 > node2->depth){
+                            node2->depth = node1->depth + 1;
+                        } 
+                        //std::cout << node1->name << ":" << node2->name << ",," << node2->depth << std::endl;
                         node2->setPrev(node1);
                         break;
                     }
@@ -282,11 +288,27 @@ FDS::FDS(Graph* graph, int64_t latency_requirement){
     this->graph = graph;
     this->latency_requirement = latency_requirement;
 
+    // Might be handled better later...
+    // 0: ADD_SUB, 1: MUL, 2: LOG, 3:DIV_MOD
+    for(int iter = 0; iter < latency_requirement; iter++){
+        this->add_sub_prob.push_back(0.0);
+        this->mul_prob.push_back(0.0);
+        this->log_prob.push_back(0.0);
+        this->div_mod_prob.push_back(0.0);
+    }
+
 }
 
 void FDS::run_force_directed_scheduler(){
     this->assign_time_frames();
     this->calculate_fds_prob();
+    this->calculate_type_prob();
+
+#if defined(ENABLE_LOGGING)  
+    this->graph->print_time_frames();
+    this->graph->print_fds_prob();
+    this->print_type_prob();
+#endif
 }
 
 void FDS::assign_time_frames(){
@@ -303,5 +325,49 @@ void FDS::calculate_fds_prob(){
         for(int iter = vertex->time_frame[0]; iter < vertex->time_frame[1]+1; iter++){
             vertex->fds_prob.at(iter-1) = prob;
         }
+    }
+}
+
+void FDS::calculate_type_prob(){
+    for (const auto& vertex : this->graph->vertices) {
+        if(vertex->type == "ADD_SUB"){
+            for(int iter = 0; iter < this->latency_requirement; iter++){
+                this->add_sub_prob.at(iter) += vertex->fds_prob.at(iter);
+            }
+        }else if(vertex->type == "MUL"){
+            for(int iter = 0; iter < this->latency_requirement; iter++){
+                this->mul_prob.at(iter) += vertex->fds_prob.at(iter);
+            }
+        }else if(vertex->type == "LOG"){
+            for(int iter = 0; iter < this->latency_requirement; iter++){
+                this->log_prob.at(iter) += vertex->fds_prob.at(iter);
+            }
+        }else if(vertex->type == "DIV_MOD"){
+            for(int iter = 0; iter < this->latency_requirement; iter++){
+                this->div_mod_prob.at(iter) += vertex->fds_prob.at(iter);
+            }
+        }else{
+            std::cout << "No " << vertex->type << " is not in the type list!!!" << std::endl;
+            exit(0);
+        }
+    }
+}
+
+void FDS::print_type_prob(){
+    std::cout << "ADD_SUB probabilities:" << std::endl;
+    for (int iter = 0; iter < this->latency_requirement; iter++) {
+        std::cout << iter+1 << ":" << this->add_sub_prob.at(iter) << std::endl;
+    }
+    std::cout << "MUL probabilities:" << std::endl;
+    for (int iter = 0; iter < this->latency_requirement; iter++) {
+        std::cout << iter+1 << ":" << this->mul_prob.at(iter) << std::endl;
+    }
+    std::cout << "LOG probabilities:" << std::endl;
+    for (int iter = 0; iter < this->latency_requirement; iter++) {
+        std::cout << iter+1 << ":" << this->log_prob.at(iter) << std::endl;
+    }
+    std::cout << "DIV_MOD probabilities:" << std::endl;
+    for (int iter = 0; iter < this->latency_requirement; iter++) {
+        std::cout << iter+1 << ":" << this->div_mod_prob.at(iter) << std::endl;
     }
 }

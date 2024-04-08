@@ -6,7 +6,7 @@ set(SOURCES
 )
 
 # Define a compiler flag to control logging
-#option(ENABLE_LOGGING "Enable logging" OFF)
+option(ENABLE_LOGGING "Enable logging" OFF)
 add_executable(hlsyn ${SOURCES})
 # If logging is enabled, add the corresponding compiler flag
 if(ENABLE_LOGGING)

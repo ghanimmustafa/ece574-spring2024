@@ -78,12 +78,21 @@ public:
 class FDS{
     public:
         Graph *graph;
+        // Might be handled better...
+        std::vector<double> add_sub_prob;
+        std::vector<double> mul_prob;
+        std::vector<double> log_prob;
+        std::vector<double> div_mod_prob;
+
         int64_t latency_requirement;
 
         FDS(Graph *graph, int64_t latency_requirement);
         void run_force_directed_scheduler();
         void assign_time_frames();
         void calculate_fds_prob();
+        void calculate_type_prob();
+
+        void print_type_prob();
 };
 
 #endif
