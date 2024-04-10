@@ -4,7 +4,7 @@
 #include <iostream>
 #include <regex>
 
-NetlistParser::NetlistParser(const std::string& filePath,OperationGraph& opGraph) : filePath(filePath), operationGraph(opGraph) {}
+NetlistParser::NetlistParser(const std::string& filePath) : filePath(filePath) {}
 
 void NetlistParser::parse() {
     std::ifstream file(filePath);
@@ -274,36 +274,10 @@ void NetlistParser::parseOperation(const std::string& operationLine,const std::s
     operation.condition = condition; // Assign the current condition context to the operation
     operation.state = state;
     operation.prev_state = prev_state;
-    // Add operation to the graph as a node
     std::string nodeName = operation.symbol + ":" + std::to_string(state); // Construct a unique node name/id
     operation.name = nodeName;
-    operationGraph.addNode(nodeName); // Assuming addNode is a method you might need to add
     operations.push_back(operation);
-  // Connect to the previous node if this is not the first operation (state > 0)
-    if (state > 0) {
-        // Find the last operation node name for the previous state or the closest state less than the current one
-        std::string prevNodeName;
-        for (int i = state - 1; i >= 0; --i) {
-            if (lastNodeNameByState.find(i) != lastNodeNameByState.end()) {
-                prevNodeName = lastNodeNameByState[i];
-                break;
-            }
-        }
 
-        // If a previous node name is found, add an edge from the previous node to the current node
-        if (!prevNodeName.empty()) {
-            operationGraph.addEdge(prevNodeName, nodeName, ""); // The condition is left empty or could be "sequential"
-        }
-    }
-
-    // Update the tracking map with the current node name for its state
-    lastNodeNameByState[state] = nodeName;
-
-    // If this operation has a condition, add an edge from the condition node to this operation
-    if (!condition.empty()) {
-        std::string conditionNodeName = "Condition: " + condition;
-        operationGraph.addEdge(conditionNodeName, nodeName, condition);
-    } 
     #if defined(ENABLE_LOGGING)
     if (opSymbol == "?") 
         std::cout << "Parsed operation: " << result << " = " << leftOperand << " " << opSymbol << " " << rightOperand <<  " " << colon <<  " " << mux_right << "\t"; 

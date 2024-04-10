@@ -3,6 +3,7 @@ set(SOURCES
     ${SRCDIR}/main.cpp
     ${SRCDIR}/NetlistParser.cpp
     ${SRCDIR}/graph.cpp
+    ${SRCDIR}/OpPostProcess.cpp
 )
 
 # Define a compiler flag to control logging

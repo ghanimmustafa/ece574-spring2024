@@ -3,6 +3,7 @@
 #include <iostream>
 #include <filesystem> // C++17 header for file path manipulations
 #include <fstream>
+#include "OpPostProcess.h" // Include the header file for OpPostProcess function
 
 namespace fs = std::filesystem;
 
@@ -32,12 +33,15 @@ int main(int argc, char** argv) {
     }else if(std::stoi(argv[4]) == 1){
 
         std::string moduleName = fs::path(cFilePath).stem().string();
-        OperationGraph opGraph;
 
-        NetlistParser parser(cFilePath,opGraph);
+        NetlistParser parser(cFilePath);
         parser.modifyModuleName(moduleName);
         parser.parse();
 
+    // Now, generate the Graphviz file to visualize the operation graph
+    // Construct the .dot file name based on moduleName
+
+            // Execute the command using std::system
         for (int i = 0; i < parser.getComponents().size(); ++i) {
             std::cout << parser.getComponents()[i].name << ":" << parser.getComponents()[i].type << std::endl;
         }
@@ -47,23 +51,10 @@ int main(int argc, char** argv) {
             std::cout << parser.getOperations()[i].symbol << ":" << parser.getOperations()[i].opType << std::endl;
         }
         std::cout << std::endl;
-    // Now, generate the Graphviz file to visualize the operation graph
-    // Construct the .dot file name based on moduleName
-        std::string dotFileName = moduleName+"_operations_flow.dot";
-        std::string pngFileName = moduleName+"_operations_flow.png";
-        opGraph.generateGraphviz(moduleName+"_operations_flow.dot");
-        std::cout << "Graphviz file generated. Convert 'operation_graph.dot' to an image using Graphviz tools." << std::endl;
-        // The command to execute
-        std::string command = "dot -Tpng " + dotFileName + " -o " + pngFileName;
+        // Now, call the OpPostProcess function passing the module name
 
-        // Execute the command using std::system
-        int result = std::system(command.c_str());
-
-        if (result != 0) {
-            // The command failed; you can handle the error as needed
-            std::cerr << "Failed to execute command: " << command << std::endl;
-        }    
-        return 0;
-
+        OperationGraph opGraph = OpPostProcess(moduleName, parser);    
     }
+    return 0;
+
 }
