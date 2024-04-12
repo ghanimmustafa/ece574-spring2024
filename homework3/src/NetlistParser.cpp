@@ -200,7 +200,7 @@ bool isValidOperand(const std::string& operand, const std::vector<Component>& co
 }
 std::unordered_map<int, std::string> lastNodeNameByState;
 
-void NetlistParser::parseOperation(const std::string& operationLine,const std::string& condition, int state, int prev_state) {
+void NetlistParser::parseOperation(const std::string& operationLine,const std::string& condition, int order, int prev_order) {
     std::string beforeEq = operationLine.substr(0, operationLine.find('='));
     std::string afterEq = operationLine.substr(operationLine.find('=') + 1);
 
@@ -272,9 +272,9 @@ void NetlistParser::parseOperation(const std::string& operationLine,const std::s
     operation.width = determineOperationWidth(operation.opType, operation.operands, operation.result);
     operation.isSigned = determineOperationSign(operation.opType, operation.operands, operation.result);
     operation.condition = condition; // Assign the current condition context to the operation
-    operation.state = state;
-    operation.prev_state = prev_state;
-    std::string nodeName = operation.symbol + ":" + std::to_string(state); // Construct a unique node name/id
+    operation.order = order;
+    operation.prev_order = prev_order;
+    std::string nodeName = operation.opType + " v(" + std::to_string(order)+")"; // Construct a unique node name/id
     operation.name = nodeName;
     operations.push_back(operation);
 
@@ -341,8 +341,8 @@ bool NetlistParser::determineOperationSign(const std::string& opType, const std:
     // Return false if none of the operands are signed
     return false;
 }
-int state = 0;
-int prev_state = -1;
+int order = 0;
+int prev_order = -1;
 void NetlistParser::parseLine(const std::string& line) {
     size_t commentPos = line.find("//");
 
@@ -405,7 +405,7 @@ void NetlistParser::parseLine(const std::string& line) {
                 currentCondition = cleanedLine.substr(cleanedLine.find("(") + 1, cleanedLine.find(")") - cleanedLine.find("(") - 1);
                 // Print the current condition for debugging
                 std::cout << "Entering IF block, condition: " << currentCondition << std::endl;
-                state++;
+                order++;
             }
             else if (cleanedLine.find("}") != std::string::npos) {
                 // Correctly clear the condition after exiting an 'if' block
@@ -415,7 +415,7 @@ void NetlistParser::parseLine(const std::string& line) {
             else{  
               size_t eqPos = cleanedLine.find('=');
               if (eqPos != std::string::npos) {
-                parseOperation(cleanedLine,currentCondition,state++,prev_state++);  
+                parseOperation(cleanedLine,currentCondition,order++,prev_order++);  
 
               }
             }
@@ -432,7 +432,7 @@ const std::vector<Component>& NetlistParser::getComponents() const {
     return components;
 }
 
-const std::vector<Operation>& NetlistParser::getOperations() const {
+std::vector<Operation>& NetlistParser::getOperations()  {
     return operations;
 }
 

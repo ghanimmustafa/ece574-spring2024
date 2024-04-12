@@ -5,17 +5,35 @@
 #include <queue>
 
 
-OperationGraph OpPostProcess(const std::string& moduleName, const NetlistParser& parser) {
+OperationGraph OpPostProcess(const std::string& moduleName, NetlistParser& parser) {
     OperationGraph opGraph;
 
     // Get the operations from the parser
-    const std::vector<Operation>& operations = parser.getOperations();
+    std::vector<Operation>& operations = parser.getOperations();
 
     // Traverse operations and add nodes to the graph
-    for (const auto& op : operations) {
+    for (auto& op : operations) {
+        if(op.opType == "MUL"){
+            op.resource = "multiplier";
+            op.cycles = 2;
+        }
+        else if (op.opType == "ADD" || op.opType == "SUB" ||  op.opType == "INC" ||  op.opType == "DEC"){
+            op.resource = "adder/subtractor";
+            op.cycles = 1;                
+        }
+        else if (op.opType == "DIV" || op.opType == "MOD" ){
+            op.resource = "divider/modulo";
+            op.cycles = 3;                
+        }
+        else if (op.opType == "COMP" || op.opType == "MUX2x1" || op.opType == "SHL" || op.opType == "SHR"){
+            op.resource = "logic/logical";
+            op.cycles = 1;                
+        }                     
         if (op.opType != "REG") {
             opGraph.addNode(op.name); // Use operation name as node name
         }
+
+
     }
 
 
@@ -43,7 +61,7 @@ OperationGraph OpPostProcess(const std::string& moduleName, const NetlistParser&
                     // Before adding an edge, check if 'otherOp' is already reachable from 'op'
                     // This prevents adding redundant edges
                     if (!opGraph.isReachable(otherOp.name, op.name)) {
-                        opGraph.addEdge(otherOp.name, op.name, ""); // Add edge if not redundant
+                        opGraph.addEdge(otherOp.name, op.name, otherOp.result); // Add edge if not redundant
                     }
                 }
             }

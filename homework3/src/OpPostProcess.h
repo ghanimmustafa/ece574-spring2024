@@ -70,5 +70,5 @@ private:
 };
 
 // Declaration of OpPostProcess function
-OperationGraph OpPostProcess(const std::string& moduleName, const NetlistParser& parser);
+OperationGraph OpPostProcess(const std::string& moduleName,  NetlistParser& parser);
 #endif // OPPOSTPROCESS_H

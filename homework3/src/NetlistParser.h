@@ -46,11 +46,12 @@ struct Operation {
     bool isSigned;
     bool isBranch = false;
     std::string condition; // Tag operations with their condition when within a branch
-    int state = -1;
-    int prev_state = -2;
+    int order = -1;
+    int prev_order = -2;
     std::string name;
     std::string fds_type;
-    int fds_cost;
+    int cycles;
+    std::string resource;
 };
 
 class NetlistParser {
@@ -58,7 +59,7 @@ public:
     NetlistParser(const std::string& filePath);
     void parse();
     const std::vector<Component>& getComponents() const;
-    const std::vector<Operation>& getOperations() const;
+    std::vector<Operation>& getOperations() ;
     std::unordered_map<std::string, int> componentWidths;
     std::unordered_map<std::string, bool> componentSignedness;
     void parseIfOperations(const std::string& ifStatement, const std::string& condition);
