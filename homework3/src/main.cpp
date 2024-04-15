@@ -53,8 +53,16 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
         // Now, call the OpPostProcess function passing the module name
 
-        OperationGraph opGraph = OpPostProcess(moduleName, parser);    
+        OperationGraph opGraph = OpPostProcess(moduleName, parser);   
+        std::vector<Operation> sortedOperations = opGraph.sortOperations(opGraph.nodes);
+
+        // Print details of each operation after sorting
+        for (const Operation& op : sortedOperations) {
+            op.printDetails();
+        }          
     }
+
+
     return 0;
 
 }

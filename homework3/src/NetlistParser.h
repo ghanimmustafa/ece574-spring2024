@@ -52,6 +52,24 @@ struct Operation {
     std::string fds_type;
     int cycles;
     std::string resource;
+    std::vector<std::string> predecessors;
+    std::vector<std::string> successors;
+    // Function to print operation details
+    void printDetails() const {
+        std::cout << "Operation Name: " << name << "\t"
+                  << "Type: " << opType << "\t"
+                  << "Resource: " << resource << "\t"
+                  << "Cycles: " << cycles << "\t"
+                  << "Predecessors: ";
+        for (const auto& pred : predecessors) {
+            std::cout << pred << " ";
+        }
+        std::cout << "\tSuccessors: ";
+        for (const auto& succ : successors) {
+            std::cout << succ << " ";
+        }
+        std::cout << std::endl;
+    }        
 };
 
 class NetlistParser {
