@@ -302,13 +302,17 @@ FDS::FDS(Graph* graph, int64_t latency_requirement){
 void FDS::run_force_directed_scheduler(){
     this->assign_time_frames();
     this->calculate_fds_prob();
-    this->calculate_type_prob();
+    this->calculate_type_dist();
 
 #if defined(ENABLE_LOGGING)  
     this->graph->print_time_frames();
     this->graph->print_fds_prob();
     this->print_type_prob();
 #endif
+
+    this->perform_scheduling();
+
+
 }
 
 void FDS::assign_time_frames(){
@@ -328,7 +332,7 @@ void FDS::calculate_fds_prob(){
     }
 }
 
-void FDS::calculate_type_prob(){
+void FDS::calculate_type_dist(){
     for (const auto& vertex : this->graph->vertices) {
         if(vertex->type == "ADD_SUB"){
             for(int iter = 0; iter < this->latency_requirement; iter++){
@@ -353,20 +357,100 @@ void FDS::calculate_type_prob(){
     }
 }
 
+void FDS::perform_scheduling(){
+    double minimum_total_force = 10000000.0;
+    int64_t minimum_time = 0;
+
+    for (const auto& vertex : this->graph->vertices) {
+        std::cout << *vertex << std::endl;
+        for(int possible_time = vertex->time_frame[0]; possible_time <= vertex->time_frame[1]; possible_time++){
+            // This is the self force of the node when scheduled at possible_time
+            double self_force = this->calculate_self_force(possible_time, vertex->time_frame, vertex->fds_prob, vertex->type);
+            double predecessor_force = 0.0;
+            if (vertex->prev.size() != 0){
+              predecessor_force = this->calculate_predecessor_force(vertex, possible_time, vertex->time_frame, vertex->fds_prob, vertex->type);
+            }
+            std::cout << possible_time << ":" << self_force << "----" << predecessor_force << std::endl;
+            // Predecessor and successor forces should be calculated to have the final force
+        }
+    }
+}
+
+double FDS::calculate_self_force(int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type){
+//    std::cout << "Calculating self force for:" << possible_time << std::endl;
+    
+    double self_force = 0;
+    size_t size = time_frame[1] - time_frame[0] + 1;
+    int64_t calculation_mask[size];
+
+    for(int iter = 0; iter < size; iter++){
+        calculation_mask[iter] = 0;
+    }
+
+    calculation_mask[possible_time - time_frame[0]] = 1;
+
+    for(int time = time_frame[0]; time <= time_frame[1]; time++){
+        if(op_type == "ADD_SUB"){
+            self_force += this->add_sub_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
+//            std::cout << this->add_sub_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
+//                        this->add_sub_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl; 
+        }else if(op_type == "MUL"){
+            self_force += this->mul_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
+//            std::cout << this->mul_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
+//                        this->mul_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
+        }else if(op_type == "LOG"){
+            self_force += this->log_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
+//            std::cout << this->log_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
+//                        this->log_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
+        }else if(op_type == "DIV_MOD"){
+            self_force += this->div_mod_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
+//            std::cout << this->div_mod_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
+//                        this->div_mod_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
+        }else{
+            std::cout << "No type named " << op_type << " is present. Exiting at calculate_self_force" << std::endl;
+            exit(0);
+        }
+    }
+
+    return self_force;
+}
+
+double FDS::calculate_predecessor_force(Node* node, int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type){
+//    std::cout << "Calculating predecessor force for:" << node->name << " and time slot " << possible_time << "\n\n";
+
+    int64_t time_frame_end;
+    
+    double self_force = 0.0;
+    double total_predecessor_force = 0.0;
+    for (const auto& vertex : node->prev) {
+        if(possible_time > vertex->time_frame[1]){
+            time_frame_end = vertex->time_frame[1];
+        }else{
+            time_frame_end = possible_time - 1; // Change this to latency
+        }
+
+        for(int iter=vertex->time_frame[0]; iter<=time_frame_end; iter++){
+            self_force = this->calculate_self_force(iter, vertex->time_frame, vertex->fds_prob, vertex->type);
+            total_predecessor_force += self_force;
+        }
+    }
+    return total_predecessor_force;
+}
+
 void FDS::print_type_prob(){
-    std::cout << "ADD_SUB probabilities:" << std::endl;
+    std::cout << "ADD_SUB distributions:" << std::endl;
     for (int iter = 0; iter < this->latency_requirement; iter++) {
         std::cout << iter+1 << ":" << this->add_sub_prob.at(iter) << std::endl;
     }
-    std::cout << "MUL probabilities:" << std::endl;
+    std::cout << "MUL distributions:" << std::endl;
     for (int iter = 0; iter < this->latency_requirement; iter++) {
         std::cout << iter+1 << ":" << this->mul_prob.at(iter) << std::endl;
     }
-    std::cout << "LOG probabilities:" << std::endl;
+    std::cout << "LOG distributions:" << std::endl;
     for (int iter = 0; iter < this->latency_requirement; iter++) {
         std::cout << iter+1 << ":" << this->log_prob.at(iter) << std::endl;
     }
-    std::cout << "DIV_MOD probabilities:" << std::endl;
+    std::cout << "DIV_MOD distributions:" << std::endl;
     for (int iter = 0; iter < this->latency_requirement; iter++) {
         std::cout << iter+1 << ":" << this->div_mod_prob.at(iter) << std::endl;
     }

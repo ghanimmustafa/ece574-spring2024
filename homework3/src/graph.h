@@ -26,6 +26,7 @@ public:
     int64_t time_frame[2];
     int64_t fds_width;
     std::vector<double> fds_prob;
+    int64_t fds_time;
 
     // Next and previous node arrays to keep track of dependencies between datapath components
     std::vector<Node*> next;
@@ -90,7 +91,10 @@ class FDS{
         void run_force_directed_scheduler();
         void assign_time_frames();
         void calculate_fds_prob();
-        void calculate_type_prob();
+        void calculate_type_dist();
+        void perform_scheduling();
+        double calculate_self_force(int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type);
+        double calculate_predecessor_force(Node *node, int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type);
 
         void print_type_prob();
 };

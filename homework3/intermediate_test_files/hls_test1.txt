@@ -4,7 +4,7 @@
 ADD1 ADD_SUB a b d 8
 ADD2 ADD_SUB a c e 8
 MUL1 MUL a c f 8
-ADD1 ADD_SUB d f x 16
+SUB1 ADD_SUB d f x 16
 COMP1 LOG d e g 8
 COMP2 LOG d e z 8
 
