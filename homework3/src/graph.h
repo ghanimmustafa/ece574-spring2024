@@ -73,6 +73,7 @@ public:
     void print_alap();
     void print_time_frames();
     void print_fds_prob();
+    void print_fds_times();
 
 };
 
@@ -95,6 +96,8 @@ class FDS{
         void perform_scheduling();
         double calculate_self_force(int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type);
         double calculate_predecessor_force(Node *node, int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type);
+        double calculate_successor_force(Node *node, int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type);
+        void update_time_frames(Node *node);
 
         void print_type_prob();
 };

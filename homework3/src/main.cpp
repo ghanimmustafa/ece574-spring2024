@@ -26,6 +26,9 @@ int main(int argc, char** argv) {
         graph->temporary_graph_former(cFilePath);
         graph->force_directed_scheduler();
 
+
+        graph->print_fds_times();
+
         delete graph;
 
         return 0;

@@ -18,6 +18,7 @@ Node::Node(std::string name, std::string type, std::vector<std::string> inputs, 
     this->time_frame[0] = 0;
     this->time_frame[1] = 0;
     this->fds_width = 0;
+    this->fds_time = 0;
 
     for (int iter = 0; iter < latency_requirement; iter++) {
         fds_prob.push_back(0.0);
@@ -48,7 +49,8 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
             os << ", output: " << node.output <<", datawidth: " << node.datawidth << 
             ", depth: " << node.depth << ", asap_time: " << node.asap_time << 
             ", alap_time: " << node.alap_time << ", time_frame: [" << node.time_frame[0] <<
-            "," << node.time_frame[1] << "]" << ", " << node.fds_width <<  " }";
+            "," << node.time_frame[1] << "]" << ", " << node.fds_width <<
+            ", fds_time: " << node.fds_time <<  " }";
     }
     return os;
 }
@@ -284,6 +286,13 @@ void Graph::print_fds_prob(){
     }
 }
 
+void Graph::print_fds_times(){
+    std::cout << "Scheduled times:" << std::endl;
+    for (const auto& vertex : this->vertices) {
+        std::cout << vertex->name << ":" << vertex->fds_time << std::endl;
+    }
+}
+
 FDS::FDS(Graph* graph, int64_t latency_requirement){
     this->graph = graph;
     this->latency_requirement = latency_requirement;
@@ -358,26 +367,45 @@ void FDS::calculate_type_dist(){
 }
 
 void FDS::perform_scheduling(){
-    double minimum_total_force = 10000000.0;
-    int64_t minimum_time = 0;
+    double total_force = 0.0;
 
     for (const auto& vertex : this->graph->vertices) {
-        std::cout << *vertex << std::endl;
+        double minimum_total_force = 10000000.0;
+        int64_t minimum_time = 0;
+        //std::cout << *vertex << std::endl;
         for(int possible_time = vertex->time_frame[0]; possible_time <= vertex->time_frame[1]; possible_time++){
             // This is the self force of the node when scheduled at possible_time
             double self_force = this->calculate_self_force(possible_time, vertex->time_frame, vertex->fds_prob, vertex->type);
             double predecessor_force = 0.0;
+            double successor_force = 0.0;
             if (vertex->prev.size() != 0){
-              predecessor_force = this->calculate_predecessor_force(vertex, possible_time, vertex->time_frame, vertex->fds_prob, vertex->type);
+                predecessor_force = this->calculate_predecessor_force(vertex, possible_time, vertex->time_frame, vertex->fds_prob, vertex->type);
+                // std::cout << possible_time << ":" << self_force << "--PF--:" << predecessor_force << std::endl;
             }
-            std::cout << possible_time << ":" << self_force << "----" << predecessor_force << std::endl;
-            // Predecessor and successor forces should be calculated to have the final force
+            if (vertex->next.size() != 0){
+                successor_force = this->calculate_successor_force(vertex, possible_time, vertex->time_frame, vertex->fds_prob, vertex->type);
+                // std::cout << possible_time << ":" << self_force << "--SF--:" << successor_force << std::endl;
+            }
+            total_force = self_force + predecessor_force + successor_force;
+            // std::cout << "\n\nTotal force: " << vertex->name << ":" << total_force << "\n\n";
+
+            if(total_force < minimum_total_force){
+                minimum_total_force = total_force;
+                minimum_time = possible_time;
+            } 
         }
+        // std::cout << *this->graph << "\n\n";
+        // std::cout << vertex->name << " scheduled to " << minimum_time << std::endl;
+        vertex->fds_time = minimum_time;
+        this->update_time_frames(vertex);
+        // std::cout << *this->graph << "\n\n";
+        this->calculate_fds_prob();
+        this->calculate_type_dist();
     }
 }
 
 double FDS::calculate_self_force(int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type){
-//    std::cout << "Calculating self force for:" << possible_time << std::endl;
+    // std::cout << "Calculating self force for:" << possible_time << std::endl;
     
     double self_force = 0;
     size_t size = time_frame[1] - time_frame[0] + 1;
@@ -392,20 +420,20 @@ double FDS::calculate_self_force(int64_t possible_time, int64_t time_frame[], st
     for(int time = time_frame[0]; time <= time_frame[1]; time++){
         if(op_type == "ADD_SUB"){
             self_force += this->add_sub_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
-//            std::cout << this->add_sub_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
-//                        this->add_sub_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl; 
+            // std::cout << this->add_sub_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
+                        // this->add_sub_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl; 
         }else if(op_type == "MUL"){
             self_force += this->mul_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
-//            std::cout << this->mul_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
-//                        this->mul_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
+            // std::cout << this->mul_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
+                        // this->mul_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
         }else if(op_type == "LOG"){
             self_force += this->log_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
-//            std::cout << this->log_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
-//                        this->log_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
+            // std::cout << this->log_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
+                        // this->log_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
         }else if(op_type == "DIV_MOD"){
             self_force += this->div_mod_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
-//            std::cout << this->div_mod_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
-//                        this->div_mod_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
+            // std::cout << this->div_mod_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
+                        // this->div_mod_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
         }else{
             std::cout << "No type named " << op_type << " is present. Exiting at calculate_self_force" << std::endl;
             exit(0);
@@ -416,7 +444,7 @@ double FDS::calculate_self_force(int64_t possible_time, int64_t time_frame[], st
 }
 
 double FDS::calculate_predecessor_force(Node* node, int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type){
-//    std::cout << "Calculating predecessor force for:" << node->name << " and time slot " << possible_time << "\n\n";
+    // std::cout << "Calculating predecessor force for:" << node->name << " and time slot " << possible_time << "\n\n";
 
     int64_t time_frame_end;
     
@@ -429,12 +457,81 @@ double FDS::calculate_predecessor_force(Node* node, int64_t possible_time, int64
             time_frame_end = possible_time - 1; // Change this to latency
         }
 
-        for(int iter=vertex->time_frame[0]; iter<=time_frame_end; iter++){
+        for(int iter = vertex->time_frame[0]; iter <= time_frame_end; iter++){
             self_force = this->calculate_self_force(iter, vertex->time_frame, vertex->fds_prob, vertex->type);
             total_predecessor_force += self_force;
         }
     }
     return total_predecessor_force;
+}
+
+double FDS::calculate_successor_force(Node* node, int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type){
+    // std::cout << "Calculating successor force for:" << node->name << " and time slot " << possible_time << "\n\n";
+
+    int64_t time_frame_start;
+    
+    double self_force = 0.0;
+    double total_successor_force = 0.0;
+    for (const auto& vertex : node->next) {
+        // std::cout << *vertex << std::endl;
+        if(possible_time < vertex->time_frame[0]){
+            time_frame_start = vertex->time_frame[0];
+        }else{
+            time_frame_start = possible_time + 1; // Change this to latency
+        }
+        for(int iter = time_frame_start; iter <= vertex->time_frame[1]; iter++){
+            self_force = this->calculate_self_force(iter, vertex->time_frame, vertex->fds_prob, vertex->type);
+            total_successor_force += self_force;
+        }
+    }
+    return total_successor_force;
+}
+
+void FDS::update_time_frames(Node* node){
+    // std::cout << "Updating time frames of predecessors and successors of " << node->name << "\n\n";
+
+    if(node->prev.size() != 0){
+        for (const auto& vertex : node->prev) {
+            if(node->fds_time <= vertex->time_frame[1]){
+                vertex->time_frame[1] = node->fds_time - 1;
+            }
+        }
+    }
+
+    if(node->next.size() != 0){
+        for (const auto& vertex : node->next) {
+            if(node->fds_time >= vertex->time_frame[0]){
+                vertex->time_frame[0] = node->fds_time + 1;
+            }
+        }
+    }
+
+    for (const auto& vertex : this->graph->vertices) {
+        int iter = 0;
+        for (const auto& prev_vertex : vertex->prev){
+            if (node->name == prev_vertex->name){
+                vertex->prev.erase(vertex->prev.begin() + iter);
+                iter--;
+            }
+            iter++;
+        }
+        iter = 0;
+        for (const auto& next_vertex : vertex->next){
+            if (node->name == next_vertex->name){
+                vertex->next.erase(vertex->next.begin() + iter);
+                iter--;
+            }
+            iter++;
+        }
+    }
+
+    for (const auto& vertex : this->graph->vertices) {
+        for (const auto& next_vertex : vertex->next){
+            if (vertex->time_frame[1] >= next_vertex->time_frame[0]){
+                next_vertex->time_frame[0] = vertex->time_frame[1] + 1;
+            }
+        }
+    }
 }
 
 void FDS::print_type_prob(){
