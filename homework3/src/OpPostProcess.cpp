@@ -46,10 +46,10 @@ OperationGraph OpPostProcess(const std::string& moduleName, NetlistParser& parse
             op.resource = "divider/modulo";
             op.cycles = 3;                
         }
-        else if (op.opType == "COMP" || op.opType == "MUX2x1" || op.opType == "SHL" || op.opType == "SHR"){
+        else if (op.opType == "COMP" || op.opType == "MUX2x1" || op.opType == "SHL" || op.opType == "SHR" || op.opType == "IF"){
             op.resource = "logic/logical";
             op.cycles = 1;                
-        }                     
+        }
         if (op.opType != "REG") {
             opGraph.addNode(op.name,op); // Use operation name as node name
         }
@@ -76,9 +76,22 @@ OperationGraph OpPostProcess(const std::string& moduleName, NetlistParser& parse
     */
     // Updated loop to construct the graph without adding redundant edges
     for (const auto& op : operations) {
+        for (const auto& otherOp : operations) {
+            if (op.opType == "COMP" && otherOp.opType == "IF") {
+                if (op.result == otherOp.operands[0]) {
+                    std::cout << "Flag: COMP result is equal to IF operand" << std::endl;
+                }
+                else{
+                     std::cout << "Flag: COMP result" << op.result <<  "is NOT equal to IF operand" << otherOp.operands[0] << std::endl;
+
+                }     
+            }
+        }
+    }    
+    for (const auto& op : operations) {
         for (const auto& operand : op.operands) {
             for (const auto& otherOp : operations) {
-                if (otherOp.result == operand) {
+                if (otherOp.result == operand   || ((otherOp.result == op.condition) && op.condition !="" && otherOp.opType == "IF"))  {
                     // Before adding an edge, check if 'otherOp' is already reachable from 'op'
                     // This prevents adding redundant edges
                     if (!opGraph.isReachable(otherOp.name, op.name)) {

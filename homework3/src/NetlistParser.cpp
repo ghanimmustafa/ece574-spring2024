@@ -77,7 +77,7 @@ void NetlistParser::parse() {
 bool isNumeric(const std::string& str);
 bool isExactlyOne(const std::string& str);  
 bool isOnlyWhitespace(const std::string& str);
-
+void trim(std::string &s);
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -102,21 +102,7 @@ void NetlistParser::modifyModuleName(std::string& moduleName) {
         }
     }
 }
-// Trim leading and trailing whitespaces from a string
-std::string trim(const std::string& str) {
-    // Find the first non-whitespace character from the beginning
-    auto start = std::find_if(str.begin(), str.end(), [](int c) {
-        return !std::isspace(static_cast<unsigned char>(c));
-    });
 
-    // Find the first non-whitespace character from the end
-    auto end = std::find_if(str.rbegin(), str.rend(), [](int c) {
-        return !std::isspace(static_cast<unsigned char>(c));
-    }).base();
-
-    // Handle empty string case
-    return (start < end ? std::string(start, end) : std::string());
-}
 /*void NetlistParser::parseIfOperations(const std::string& ifStatement, const std::string& condition) {
     // Here you can parse operations inside the if block and handle the condition
     // For example, you can create Operation objects, calculate width, signedness, etc.
@@ -200,6 +186,27 @@ bool isValidOperand(const std::string& operand, const std::vector<Component>& co
 }
 std::unordered_map<int, std::string> lastNodeNameByState;
 
+void NetlistParser::parseBranch(const std::string& branch_type,const std::string& condition, int order, int prev_order) {
+
+    Operation operation;
+    operation.result = condition;
+    operation.operands.push_back(condition);
+    operation.opType = branch_type;
+    // Here you might want to call determineOperationWidth or assign a width directly
+    operation.order = order;
+    operation.prev_order = prev_order;
+    std::string nodeName = operation.opType + " v(" + std::to_string(order)+")"; // Construct a unique node name/id
+    operation.name = nodeName;
+    if (operation.opType == "IF")
+        operation.line = std::string("if") + " (" +  operation.result + ")" ;     
+    operations.push_back(operation);
+
+
+
+}
+
+
+
 void NetlistParser::parseOperation(const std::string& operationLine,const std::string& condition, int order, int prev_order) {
     std::string beforeEq = operationLine.substr(0, operationLine.find('='));
     std::string afterEq = operationLine.substr(operationLine.find('=') + 1);
@@ -276,6 +283,11 @@ void NetlistParser::parseOperation(const std::string& operationLine,const std::s
     operation.prev_order = prev_order;
     std::string nodeName = operation.opType + " v(" + std::to_string(order)+")"; // Construct a unique node name/id
     operation.name = nodeName;
+    if (operation.opType == "COMP") 
+        operation.line = result + " <= " + leftOperand + " " + opSymbol + " " + rightOperand +  " " + colon +  " " + mux_right + " ;"; 
+
+    else 
+        operation.line = result + " <= " + leftOperand + " " + opSymbol + " " + rightOperand +  " ;"; 
     operations.push_back(operation);
 
     #if defined(ENABLE_LOGGING)
@@ -403,9 +415,12 @@ void NetlistParser::parseLine(const std::string& line) {
             if (cleanedLine.find("if") != std::string::npos) {
                 // Correctly extract the condition when entering an 'if' block
                 currentCondition = cleanedLine.substr(cleanedLine.find("(") + 1, cleanedLine.find(")") - cleanedLine.find("(") - 1);
+                //currentCondition = "g";
+                trim(currentCondition);
                 // Print the current condition for debugging
                 std::cout << "Entering IF block, condition: " << currentCondition << std::endl;
-                order++;
+                parseBranch("IF",currentCondition,order++,prev_order++);  
+
             }
             else if (cleanedLine.find("}") != std::string::npos) {
                 // Correctly clear the condition after exiting an 'if' block
