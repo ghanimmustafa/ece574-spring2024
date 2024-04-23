@@ -105,7 +105,7 @@ private:
     int determineOperationWidth(const std::string& opType, const std::vector<std::string>& operands, const std::string& result); // Ensure this line is in your NetlistParser class
     bool determineOperationSign(const std::string& opType, const std::vector<std::string>& operands, const std::string& result);
     void parseOperation(const std::string& operationLine,const std::string& condition, int state, int prev_state);
-    void parseBranch(const std::string& branch_type,const std::string& condition, int order, int prev_order); 
+    void parseBranch(const std::string& branch_type,const std::string& self_condition, const std::string& prev_condition,int order, int prev_order); 
     // Existing private members...
     std::string currentCondition; // Track the current conditional context for operations
 };

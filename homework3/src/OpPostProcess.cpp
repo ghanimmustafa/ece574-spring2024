@@ -91,7 +91,7 @@ OperationGraph OpPostProcess(const std::string& moduleName, NetlistParser& parse
     for (const auto& op : operations) {
         for (const auto& operand : op.operands) {
             for (const auto& otherOp : operations) {
-                if (otherOp.result == operand   || ((otherOp.result == op.condition) && op.condition !="" && otherOp.opType == "IF"))  {
+                if ((otherOp.result == operand && otherOp.opType!="IF")   || ((otherOp.result == op.condition) && op.condition !="" && otherOp.opType == "IF"))  {
                     // Before adding an edge, check if 'otherOp' is already reachable from 'op'
                     // This prevents adding redundant edges
                     if (!opGraph.isReachable(otherOp.name, op.name)) {

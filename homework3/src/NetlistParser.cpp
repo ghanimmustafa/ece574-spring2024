@@ -186,11 +186,12 @@ bool isValidOperand(const std::string& operand, const std::vector<Component>& co
 }
 std::unordered_map<int, std::string> lastNodeNameByState;
 
-void NetlistParser::parseBranch(const std::string& branch_type,const std::string& condition, int order, int prev_order) {
+void NetlistParser::parseBranch(const std::string& branch_type,const std::string& self_condition, const std::string& prev_condition,int order, int prev_order) {
 
     Operation operation;
-    operation.result = condition;
-    operation.operands.push_back(condition);
+    operation.condition = prev_condition;
+    operation.result = self_condition;
+    operation.operands.push_back(self_condition);
     operation.opType = branch_type;
     // Here you might want to call determineOperationWidth or assign a width directly
     operation.order = order;
@@ -355,6 +356,8 @@ bool NetlistParser::determineOperationSign(const std::string& opType, const std:
 }
 int order = 0;
 int prev_order = -1;
+std::stack<std::string> conditionStack;
+
 void NetlistParser::parseLine(const std::string& line) {
     size_t commentPos = line.find("//");
 
@@ -412,7 +415,7 @@ void NetlistParser::parseLine(const std::string& line) {
 
             std::cout << cleanedLine << std::endl;
             removeWhitespace(cleanedLine); 
-            if (cleanedLine.find("if") != std::string::npos) {
+            /*if (cleanedLine.find("if") != std::string::npos) {
                 // Correctly extract the condition when entering an 'if' block
                 currentCondition = cleanedLine.substr(cleanedLine.find("(") + 1, cleanedLine.find(")") - cleanedLine.find("(") - 1);
                 //currentCondition = "g";
@@ -433,7 +436,74 @@ void NetlistParser::parseLine(const std::string& line) {
                 parseOperation(cleanedLine,currentCondition,order++,prev_order++);  
 
               }
+            }*/
+            /*if (cleanedLine.find("if") != std::string::npos) {
+                // Extract the condition from within the parentheses of the 'if'
+                size_t start = cleanedLine.find("(") + 1;
+                size_t end = cleanedLine.find(")");
+                currentCondition = cleanedLine.substr(start, end - start);
+                trim(currentCondition);  // Assume trim is a function that removes whitespace
+
+                // Debugging output
+                std::cout << "Entering IF block, condition: " << currentCondition << std::endl;
+
+                // Parse the branching operation for entering the 'if'
+            
+                parseBranch("IF", currentCondition,"", order++, prev_order++);
             }
+            else if (cleanedLine.find("}") != std::string::npos) {
+                // When exiting the 'if' block
+                std::cout << "Exiting IF block, clearing condition: " << currentCondition << std::endl;
+                currentCondition.clear();
+            }
+            else {
+                // Handle normal operations inside or outside of 'if' blocks
+                size_t eqPos = cleanedLine.find('=');
+                if (eqPos != std::string::npos) {
+                    parseOperation(cleanedLine, currentCondition, order++, prev_order++);
+                }
+            }*/
+            if (cleanedLine.find("if") != std::string::npos) {
+                // Extract the condition from within the parentheses of the 'if'
+                size_t start = cleanedLine.find("(") + 1;
+                size_t end = cleanedLine.find(")");
+                std::string extractedCondition = cleanedLine.substr(start, end - start);
+                trim(extractedCondition);  // Assume trim is a function that removes whitespace
+
+                // Debugging output
+                std::cout << "Entering IF block, condition: " << extractedCondition << std::endl;
+
+                // Keep track of the current condition before pushing a new one
+                std::string prevCondition;
+                if (!conditionStack.empty()) {
+                    prevCondition = conditionStack.top();
+                }
+
+                // Push the new condition onto the stack
+                conditionStack.push(extractedCondition);
+
+                // Parse the branching operation for entering the 'if'
+                parseBranch("IF", extractedCondition, prevCondition, order++, prev_order++);
+            }
+            else if (cleanedLine.find("}") != std::string::npos) {
+                // When exiting the 'if' block, ensure there's a condition to pop
+                if (!conditionStack.empty()) {
+                    std::cout << "Exiting IF block, clearing condition: " << conditionStack.top() << std::endl;
+                    conditionStack.pop();
+                }
+
+                // Restore previous condition if there is one
+                std::string restoredCondition = conditionStack.empty() ? "" : conditionStack.top();
+                std::cout << "Condition restored to: " << restoredCondition << std::endl;
+            }
+            else {
+                // Handle normal operations inside or outside of 'if' blocks
+                size_t eqPos = cleanedLine.find('=');
+                if (eqPos != std::string::npos) {
+                    std::string currentCondition = conditionStack.empty() ? "" : conditionStack.top();
+                    parseOperation(cleanedLine, currentCondition, order++, prev_order++);
+                }
+            }                        
 
             
 
