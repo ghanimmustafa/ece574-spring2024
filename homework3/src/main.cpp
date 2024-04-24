@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     std::string moduleName = fs::path(cFilePath).stem().string();
 
     NetlistParser parser(cFilePath);
-    parser.modifyModuleName(moduleName);
+    //parser.modifyModuleName(moduleName);
     parser.parse();
 
     // Now, generate the Graphviz file to visualize the operation graph

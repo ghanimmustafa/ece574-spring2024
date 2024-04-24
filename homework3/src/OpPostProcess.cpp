@@ -98,6 +98,7 @@ OperationGraph OpPostProcess(const std::string& moduleName, NetlistParser& parse
                         opGraph.addEdge(otherOp.name, op.name, otherOp.result); // Add edge if not redundant
                     }
                 }
+                
             }
         }
     }   

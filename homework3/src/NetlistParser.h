@@ -47,6 +47,7 @@ struct Operation {
     bool isSigned;
     bool isBranch = false;
     std::string condition; // Tag operations with their condition when within a branch
+    bool enter_branch = false; // to differentiate between if and else branches 
     int order = -1;
     int prev_order = -2;
     std::string name;
@@ -70,6 +71,8 @@ struct Operation {
 
         std::cout << "\t"
                   << "Output: " << result << "\t"
+                  << "Condition " << condition << "\t"
+                  << "Condition Branch " << enter_branch << "\t"
                   << "Type: " << opType << "\t"
                   << "Resource: " << resource << "\t"
                   << "Cycles: " << cycles << "\t"
@@ -104,8 +107,8 @@ private:
     void parseLine(const std::string& line);
     int determineOperationWidth(const std::string& opType, const std::vector<std::string>& operands, const std::string& result); // Ensure this line is in your NetlistParser class
     bool determineOperationSign(const std::string& opType, const std::vector<std::string>& operands, const std::string& result);
-    void parseOperation(const std::string& operationLine,const std::string& condition, int state, int prev_state);
-    void parseBranch(const std::string& branch_type,const std::string& self_condition, const std::string& prev_condition,int order, int prev_order); 
+    void parseOperation(const std::string& operationLine,const std::string& condition, bool enter_branch, int state, int prev_state);
+    void parseBranch(const std::string& branch_type,const std::string& self_condition, const std::string& prev_condition, bool enter_branch,int order, int prev_order); 
     // Existing private members...
     std::string currentCondition; // Track the current conditional context for operations
 };

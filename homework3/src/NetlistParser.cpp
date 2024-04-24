@@ -186,7 +186,7 @@ bool isValidOperand(const std::string& operand, const std::vector<Component>& co
 }
 std::unordered_map<int, std::string> lastNodeNameByState;
 
-void NetlistParser::parseBranch(const std::string& branch_type,const std::string& self_condition, const std::string& prev_condition,int order, int prev_order) {
+void NetlistParser::parseBranch(const std::string& branch_type,const std::string& self_condition, const std::string& prev_condition, bool enter_branch, int order, int prev_order) {
 
     Operation operation;
     operation.condition = prev_condition;
@@ -197,6 +197,7 @@ void NetlistParser::parseBranch(const std::string& branch_type,const std::string
     operation.order = order;
     operation.prev_order = prev_order;
     std::string nodeName = operation.opType + " v(" + std::to_string(order)+")"; // Construct a unique node name/id
+    operation.enter_branch = enter_branch;
     operation.name = nodeName;
     if (operation.opType == "IF")
         operation.line = std::string("if") + " (" +  operation.result + ")" ;     
@@ -208,7 +209,7 @@ void NetlistParser::parseBranch(const std::string& branch_type,const std::string
 
 
 
-void NetlistParser::parseOperation(const std::string& operationLine,const std::string& condition, int order, int prev_order) {
+void NetlistParser::parseOperation(const std::string& operationLine,const std::string& condition,bool enter_branch, int order, int prev_order) {
     std::string beforeEq = operationLine.substr(0, operationLine.find('='));
     std::string afterEq = operationLine.substr(operationLine.find('=') + 1);
 
@@ -235,6 +236,7 @@ void NetlistParser::parseOperation(const std::string& operationLine,const std::s
     operation.operands.push_back(leftOperand);
     operation.operands.push_back(rightOperand);
     operation.symbol = opSymbol;
+    operation.enter_branch = enter_branch;
 
     // Utilize the isExactlyOne function to check operands
     if (opSymbol == "+" && (isExactlyOne(leftOperand) || isExactlyOne(rightOperand))) 
@@ -357,7 +359,22 @@ bool NetlistParser::determineOperationSign(const std::string& opType, const std:
 int order = 0;
 int prev_order = -1;
 std::stack<std::string> conditionStack;
+bool nextIsElse = false;
+bool enter_branch = false;
+bool else_flag = false;
+std::string getSecondTop(std::stack<std::string>& stack) {
+    if (stack.size() < 2) {
+        // Less than two elements means there is no second top element
+        return "";
+    }
 
+    std::string top = stack.top(); // Temporarily hold the top element
+    stack.pop();                   // Remove the top element
+    std::string secondTop = stack.top(); // Now the top is the second top
+    stack.push(top);               // Restore the original top element
+
+    return secondTop;
+}
 void NetlistParser::parseLine(const std::string& line) {
     size_t commentPos = line.find("//");
 
@@ -463,6 +480,7 @@ void NetlistParser::parseLine(const std::string& line) {
                     parseOperation(cleanedLine, currentCondition, order++, prev_order++);
                 }
             }*/
+            /*
             if (cleanedLine.find("if") != std::string::npos) {
                 // Extract the condition from within the parentheses of the 'if'
                 size_t start = cleanedLine.find("(") + 1;
@@ -504,7 +522,44 @@ void NetlistParser::parseLine(const std::string& line) {
                     parseOperation(cleanedLine, currentCondition, order++, prev_order++);
                 }
             }                        
+            */
+            if (cleanedLine.find("if") != std::string::npos) {
+                size_t start = cleanedLine.find("(") + 1;
+                size_t end = cleanedLine.find(")");
+                std::string extractedCondition = cleanedLine.substr(start, end - start);
+                trim(extractedCondition);
 
+                // Push the new condition onto the stack
+                conditionStack.push(extractedCondition);
+                enter_branch = true;
+
+                // Parse the branching operation for entering the 'if'
+                parseBranch("IF", extractedCondition, getSecondTop(conditionStack), enter_branch, order++, prev_order++);
+                std::cout << "Entering IF block, condition: " << extractedCondition << std::endl;
+            }
+            else if (cleanedLine.find("else") != std::string::npos) {
+                enter_branch = false;
+                if (!conditionStack.empty()) {
+                    std::string lastCondition = conditionStack.top();  // Get the last 'if' condition
+                    conditionStack.push(lastCondition);  // Duplicate the last 'if' condition for the 'else' block
+                    std::cout << "Entering ELSE block, using condition of last IF: " << lastCondition << std::endl;
+                }
+            }
+            else if (cleanedLine.find("}") != std::string::npos) {
+                // Reset enter_branch only if exiting a conditional block that was directly active
+                if (!conditionStack.empty()) {
+                        conditionStack.pop(); // Correctly pop the stack when exiting the conditional block
+                }
+                    //enter_branch = false;
+                std::cout << "Exiting block, condition stack size now: " << conditionStack.size() << std::endl;
+            }
+            else {
+                size_t eqPos = cleanedLine.find('=');
+                if (eqPos != std::string::npos) {
+                    std::string currentCondition = conditionStack.empty() ? "" : conditionStack.top();
+                    parseOperation(cleanedLine, currentCondition, enter_branch, order++, prev_order++);
+                }
+            }    
             
 
         }
