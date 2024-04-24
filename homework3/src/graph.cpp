@@ -6,15 +6,15 @@
 
 #include "graph.h"
 
-Node::Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, int64_t latency_requirement) {
+Node::Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, int64_t latency_requirement, int64_t latency) {
     this->name = name;
     this->type = type;
     this->inputs = inputs;
     this->output = output;
     this->datawidth = datawidth;
+    this->latency = latency;
 
-    this->depth = 1;
-    this->asap_time = 0;
+    this->asap_time = 1;
     this->alap_time = latency_requirement;
     this->time_frame[0] = 0;
     this->time_frame[1] = 0;
@@ -48,7 +48,7 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
                 os << ", input: " << input; 
             }
             os << ", output: " << node.output <<", datawidth: " << node.datawidth << 
-            ", depth: " << node.depth << ", asap_time: " << node.asap_time << 
+            ", asap_time: " << node.asap_time << 
             ", alap_time: " << node.alap_time << ", time_frame: [" << node.time_frame[0] <<
             "," << node.time_frame[1] << "]" << ", " << node.fds_width <<
             ", fds_time: " << node.fds_time << " }";
@@ -79,7 +79,7 @@ Graph::Graph(std::vector<Operation> operations, int64_t latency_requirement){
             exit(0);
         }
 
-        Node *temp = new Node(op.name, type, op.operands, op.result, op.width, latency_requirement);
+        Node *temp = new Node(op.name, type, op.operands, op.result, op.width, latency_requirement, op.cycles);
         this->vertices.push_back(temp);
     } 
 

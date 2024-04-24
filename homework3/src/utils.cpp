@@ -38,13 +38,6 @@ void FDS::print_fds_prob(){
     }
 }
 
-void FDS::print_fds_times(){
-    std::cout << "Scheduled times:" << std::endl;
-    for (const auto& vertex : this->graph->vertices) {
-        std::cout << vertex->name << ":" << vertex->fds_time << std::endl;
-    }
-}
-
 void FDS::print_type_prob(){
     std::cout << "ADD_SUB distributions:" << std::endl;
     for (int iter = 0; iter < this->latency_requirement; iter++) {
@@ -61,5 +54,12 @@ void FDS::print_type_prob(){
     std::cout << "DIV_MOD distributions:" << std::endl;
     for (int iter = 0; iter < this->latency_requirement; iter++) {
         std::cout << iter+1 << ":" << this->div_mod_prob.at(iter) << std::endl;
+    }
+}
+
+void FDS::print_fds_times(){
+    std::cout << "Scheduled times:" << std::endl;
+    for (const auto& vertex : this->graph->vertices) {
+        std::cout << vertex->name << ":" << vertex->fds_time << std::endl;
     }
 }

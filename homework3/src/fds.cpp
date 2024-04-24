@@ -27,6 +27,7 @@ void FDS::run_force_directed_scheduler(){
     this->assign_time_frames();
     this->calculate_fds_prob();
     this->calculate_type_dist();
+    this->perform_scheduling();
 
 #if defined(ENABLE_LOGGING)  
     this->print_asap();
@@ -34,21 +35,16 @@ void FDS::run_force_directed_scheduler(){
     this->print_time_frames();
     this->print_fds_prob();
     this->print_type_prob();
+    this->print_fds_times();
 #endif
-
-    this->perform_scheduling();
 }
 
 void FDS::asap_scheduler(){
     for (const auto& vertex : this->graph->vertices) {
-        std::cout << *vertex << std::endl;
         for(const auto& sub_vertex : vertex->next){
-            std::cout << *sub_vertex << std::endl;
+            sub_vertex->asap_time = vertex->asap_time + vertex->latency;
         }
-        std::cout << std::endl;
     }
-    exit(0);
-
 }
 
 void FDS::alap_scheduler(){
