@@ -235,7 +235,7 @@ void FDS::update_time_frames(Node* node){
     if(node->prev.size() != 0){
         for (const auto& vertex : node->prev) {
             if(node->fds_time <= vertex->time_frame[1]){
-                vertex->time_frame[1] = node->fds_time - 1;
+                vertex->time_frame[1] = node->fds_time - node->latency;
             }
         }
     }
@@ -243,7 +243,7 @@ void FDS::update_time_frames(Node* node){
     if(node->next.size() != 0){
         for (const auto& vertex : node->next) {
             if(node->fds_time >= vertex->time_frame[0]){
-                vertex->time_frame[0] = node->fds_time + 1;
+                vertex->time_frame[0] = node->fds_time + node->latency;
             }
         }
     }
