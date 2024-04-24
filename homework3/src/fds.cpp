@@ -6,37 +6,6 @@
 
 #include "fds.h"
 
-void FDS::asap_scheduler(){
-    for (const auto& vertex : this->graph->vertices) {
-        std::cout << *vertex << std::endl;
-        for(const auto& sub_vertex : vertex->next){
-            std::cout << *sub_vertex << std::endl;
-        }
-        std::cout << std::endl;
-    }
-    exit(0);
-
-}
-
-void FDS::alap_scheduler(){
-    int alap_time = this->graph->latency_requirement;
-    for (int iter = this->graph->vertices.size() - 1; iter >= 0; iter--) {
-        int smallest_alap = 1000;
-        if(this->graph->vertices.at(iter)->next.size() == 0){
-            continue;
-        }else{
-            for (const auto& vertex : this->graph->vertices.at(iter)->next) {
-                if(vertex->alap_time < smallest_alap){
-                    smallest_alap = vertex->alap_time;
-                }
-            }
-        this->graph->vertices.at(iter)->alap_time = smallest_alap - 1;
-        }
-    }
-}
-
-
-
 FDS::FDS(Graph* graph, int64_t latency_requirement){
     this->graph = graph;
     this->latency_requirement = latency_requirement;
@@ -68,6 +37,35 @@ void FDS::run_force_directed_scheduler(){
 #endif
 
     this->perform_scheduling();
+}
+
+void FDS::asap_scheduler(){
+    for (const auto& vertex : this->graph->vertices) {
+        std::cout << *vertex << std::endl;
+        for(const auto& sub_vertex : vertex->next){
+            std::cout << *sub_vertex << std::endl;
+        }
+        std::cout << std::endl;
+    }
+    exit(0);
+
+}
+
+void FDS::alap_scheduler(){
+    int alap_time = this->graph->latency_requirement;
+    for (int iter = this->graph->vertices.size() - 1; iter >= 0; iter--) {
+        int smallest_alap = 1000;
+        if(this->graph->vertices.at(iter)->next.size() == 0){
+            continue;
+        }else{
+            for (const auto& vertex : this->graph->vertices.at(iter)->next) {
+                if(vertex->alap_time < smallest_alap){
+                    smallest_alap = vertex->alap_time;
+                }
+            }
+        this->graph->vertices.at(iter)->alap_time = smallest_alap - 1;
+        }
+    }
 }
 
 void FDS::assign_time_frames(){
