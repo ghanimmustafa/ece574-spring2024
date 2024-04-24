@@ -2,8 +2,10 @@ set(SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(SOURCES 
     ${SRCDIR}/main.cpp
     ${SRCDIR}/NetlistParser.cpp
-    ${SRCDIR}/graph.cpp
     ${SRCDIR}/OpPostProcess.cpp
+    ${SRCDIR}/graph.cpp
+    ${SRCDIR}/fds.cpp
+    ${SRCDIR}/utils.cpp
 )
 
 # Define a compiler flag to control logging
