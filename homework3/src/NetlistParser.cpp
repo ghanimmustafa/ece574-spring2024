@@ -429,8 +429,9 @@ void NetlistParser::parseLine(const std::string& line) {
   
         } else {
             // Handling operation lines
-
+#if defined(ENABLE_LOGGING)
             std::cout << cleanedLine << std::endl;
+#endif
             removeWhitespace(cleanedLine); 
             /*if (cleanedLine.find("if") != std::string::npos) {
                 // Correctly extract the condition when entering an 'if' block

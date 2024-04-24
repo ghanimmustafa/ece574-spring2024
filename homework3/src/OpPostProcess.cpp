@@ -122,6 +122,8 @@ OperationGraph OpPostProcess(const std::string& moduleName, NetlistParser& parse
             }
         }
     }
+    
+#if defined(ENABLE_LOGGING)  
 
     // Generate Graphviz file
     std::string dotFileName = moduleName + "_operations_flow.dot";
@@ -164,6 +166,6 @@ OperationGraph OpPostProcess(const std::string& moduleName, NetlistParser& parse
     //printGraphDetails(opGraph);
     // Assuming you know the number of nodes or have a maximum limit
     // Sort the operations using your predefined function
-
+#endif
     return opGraph;
 }

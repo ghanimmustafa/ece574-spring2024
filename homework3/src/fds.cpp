@@ -27,7 +27,6 @@ void FDS::run_force_directed_scheduler(){
     this->assign_time_frames();
     this->calculate_fds_prob();
     this->calculate_type_dist();
-    this->perform_scheduling();
 
 #if defined(ENABLE_LOGGING)  
     this->print_asap();
@@ -35,8 +34,15 @@ void FDS::run_force_directed_scheduler(){
     this->print_time_frames();
     this->print_fds_prob();
     this->print_type_prob();
-    this->print_fds_times();
 #endif
+
+    this->perform_scheduling();
+
+    for(const auto& vertex : this->graph->vertices){
+        vertex->fds_time -= 1;
+    }
+
+    this->print_fds_times();
 }
 
 void FDS::asap_scheduler(){
@@ -51,15 +57,17 @@ void FDS::alap_scheduler(){
     int alap_time = this->graph->latency_requirement;
     for (int iter = this->graph->vertices.size() - 1; iter >= 0; iter--) {
         int smallest_alap = 1000;
+        int smallest_alap_latency;
         if(this->graph->vertices.at(iter)->next.size() == 0){
             continue;
         }else{
             for (const auto& vertex : this->graph->vertices.at(iter)->next) {
                 if(vertex->alap_time < smallest_alap){
                     smallest_alap = vertex->alap_time;
+                    smallest_alap_latency = vertex->latency;
                 }
             }
-        this->graph->vertices.at(iter)->alap_time = smallest_alap - 1;
+        this->graph->vertices.at(iter)->alap_time = smallest_alap - this->graph->vertices.at(iter)->latency;
         }
     }
 }
@@ -113,11 +121,7 @@ void FDS::perform_scheduling(){
     for (const auto& vertex : this->graph->vertices) {
         double minimum_total_force = 10000000.0;
         int64_t minimum_time = 0;
-#if defined(ENABLE_LOGGING)  
-        std::cout << vertex->name << std::endl;
-#endif        
         for(int possible_time = vertex->time_frame[0]; possible_time <= vertex->time_frame[1]; possible_time++){
-            // This is the self force of the node when scheduled at possible_time
             double self_force = this->calculate_self_force(possible_time, vertex->time_frame, vertex->fds_prob, vertex->type, vertex->name);
             double predecessor_force = 0.0;
             double successor_force = 0.0;
@@ -128,10 +132,6 @@ void FDS::perform_scheduling(){
                 successor_force = this->calculate_successor_force(vertex, possible_time, vertex->time_frame, vertex->fds_prob, vertex->type);
             }
             total_force = self_force + predecessor_force + successor_force;
-#if defined(ENABLE_LOGGING)  
-            std::cout << "Time " << possible_time << ": " << self_force << ", PF:" << predecessor_force << ", SF:" << successor_force << std::endl;;
-            std::cout << "Total force for " << vertex->name << ": " << total_force << "\n";
-#endif 
 
             if(total_force < minimum_total_force){
                 if (std::abs(total_force - minimum_total_force) < tolerance) {
@@ -141,21 +141,14 @@ void FDS::perform_scheduling(){
                 minimum_time = possible_time;
             }
         }
-        // std::cout << *this->graph << "\n\n";
-        // std::cout << vertex->name << " scheduled to " << minimum_time << "\n" << std::endl;
         vertex->fds_time = minimum_time;
         this->update_time_frames(vertex);
-        // std::cout << *this->graph << "\n\n";
         this->calculate_fds_prob();
         this->calculate_type_dist();
     }
 }
 
 double FDS::calculate_self_force(int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type, std::string name){
-#if defined(ENABLE_LOGGING)  
-        // std::cout << "Calculating self force for " << name << " and time slot " << possible_time << std::endl;
-#endif 
-    
     double self_force = 0;
     size_t size = time_frame[1] - time_frame[0] + 1;
     int64_t calculation_mask[size];
@@ -169,43 +162,22 @@ double FDS::calculate_self_force(int64_t possible_time, int64_t time_frame[], st
     for(int time = time_frame[0]; time <= time_frame[1]; time++){
         if(op_type == "ADD_SUB"){
             self_force += this->add_sub_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
-#if defined(ENABLE_LOGGING)  
-            // std::cout << this->add_sub_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
-                //  this->add_sub_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl; 
-#endif
         }else if(op_type == "MUL"){
             self_force += this->mul_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
-#if defined(ENABLE_LOGGING)  
-            // std::cout << this->mul_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
-                        // this->mul_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
-#endif
         }else if(op_type == "LOG"){
             self_force += this->log_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
-#if defined(ENABLE_LOGGING)  
-            // std::cout << this->log_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
-            //             this->log_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
-#endif
         }else if(op_type == "DIV_MOD"){
             self_force += this->div_mod_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1));
-#if defined(ENABLE_LOGGING)  
-            // std::cout << this->div_mod_prob.at(time - 1) << " * " << "(" << calculation_mask[time - time_frame[0]] << " - " << fds_prob.at(time-1) << ")" << " = " << 
-            //             this->div_mod_prob.at(time - 1) * (calculation_mask[time - time_frame[0]] - fds_prob.at(time-1)) << std::endl;
-#endif
         }else{
             std::cout << "No type named " << op_type << " is present. Exiting at calculate_self_force" << std::endl;
             exit(0);
         }
     }
 
-    // std::cout << "DONE and self force is: " << self_force << "\n\n";
     return self_force;
 }
 
 double FDS::calculate_predecessor_force(Node* node, int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type){
-#if defined(ENABLE_LOGGING)  
-    // std::cout << "Calculating predecessor force for " << node->name << " and time slot " << possible_time << "\n\n";
-#endif
-
     double total_predecessor_force = 0.0;
     
     this->traverse_graph(node, possible_time, total_predecessor_force, "prev");
@@ -213,10 +185,6 @@ double FDS::calculate_predecessor_force(Node* node, int64_t possible_time, int64
 }
 
 double FDS::calculate_successor_force(Node* node, int64_t possible_time, int64_t time_frame[], std::vector<double> fds_prob, std::string op_type){
-#if defined(ENABLE_LOGGING)  
-    // std::cout << "Calculating successor force for " << node->name << " and time slot " << possible_time << "\n\n";
-#endif
-
     double total_successor_force = 0.0;
     this->traverse_graph(node, possible_time, total_successor_force, "next");
     return total_successor_force;
@@ -235,45 +203,25 @@ void FDS::traverse_graph(Node *node, int64_t earlier_time, double &total_success
     }
 
     if(node->time_frame[0] == node->time_frame[1]){
-        // std::cout << "Visiting node: " << node->name << std::endl;
-        // std::cout << "Processing time: " << node->time_frame[0]  << ", earlier time:" << earlier_time << std::endl;
-        
         if(direction == "next" && node->time_frame[0] > earlier_time){
-            // std::cout << "Adding up: " << iter  << ", earlier time:" << earlier_time << std::endl;
-            // std::cout << "Successor force:" << this->calculate_self_force(iter, node->time_frame, node->fds_prob, node->type, node->name) << std::endl;
             total_successor_force += this->calculate_self_force(node->time_frame[0], node->time_frame, node->fds_prob, node->type, node->name);
-            //std::cout << "Total successor force:" << total_successor_force << std::endl;
         }else if(direction == "prev" && node->time_frame[0] < earlier_time){
-            // std::cout << "Adding up: " << node->time_frame[0]  << ", earlier time:" << earlier_time << std::endl;
-            // std::cout << "Predecessor force:" << this->calculate_self_force(node->time_frame[0], node->time_frame, node->fds_prob, node->type, node->name) << std::endl;
             total_successor_force += this->calculate_self_force(node->time_frame[0], node->time_frame, node->fds_prob, node->type, node->name);
-            // std::cout << "Total Predecessor force:" << total_successor_force << std::endl;
         }
 
         for (const auto& dependentNode : dependencies) {
             traverse_graph(dependentNode, node->time_frame[0], total_successor_force, direction);
-            // std::cout << "\n";
         }
     }else{
         for (int iter = node->time_frame[0]; iter <= node->time_frame[1]; iter++) {
-            // std::cout << "Visiting node: " << node->name << std::endl;
-            // std::cout << "Processing time: " << iter  << ", earlier time:" << earlier_time << std::endl;
-
             if(direction == "next" && iter > earlier_time){
-                // std::cout << "Adding up: " << iter  << ", earlier time:" << earlier_time << std::endl;
-                // std::cout << "Successor force:" << this->calculate_self_force(iter, node->time_frame, node->fds_prob, node->type, node->name) << std::endl;
                 total_successor_force += this->calculate_self_force(iter, node->time_frame, node->fds_prob, node->type, node->name);
-                //std::cout << "Total successor force:" << total_successor_force << std::endl;
             }else if(direction == "prev" && iter < earlier_time){
-                // std::cout << "Adding up: " << iter  << ", earlier time:" << earlier_time << std::endl;
-                // std::cout << "Successor force:" << this->calculate_self_force(iter, node->time_frame, node->fds_prob, node->type, node->name) << std::endl;
                 total_successor_force += this->calculate_self_force(iter, node->time_frame, node->fds_prob, node->type, node->name);
-                // std::cout << "Total successor force:" << total_successor_force << std::endl;
             }
 
             for (const auto& dependentNode : dependencies) {
                 traverse_graph(dependentNode, iter, total_successor_force, direction);
-                // std::cout << "\n";
             }
         }
     }
@@ -281,8 +229,6 @@ void FDS::traverse_graph(Node *node, int64_t earlier_time, double &total_success
 }
 
 void FDS::update_time_frames(Node* node){
-    // std::cout << "Updating time frames of predecessors and successors of " << node->name << "\n\n";
-
     node->time_frame[0] = node->fds_time;
     node->time_frame[1] = node->fds_time;
 

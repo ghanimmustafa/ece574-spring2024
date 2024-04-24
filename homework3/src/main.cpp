@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     // Construct the .dot file name based on moduleName
 
     // Execute the command using std::system
-    
+#if defined(ENABLE_LOGGING)  
     std::cout << "GetComponents" << std::endl;
     for (int i = 0; i < parser.getComponents().size(); ++i) {
         std::cout << parser.getComponents()[i].name << ":" << parser.getComponents()[i].type << std::endl;
@@ -44,14 +44,17 @@ int main(int argc, char** argv) {
     }
     std::cout << std::endl;
     // Now, call the OpPostProcess function passing the module name
+#endif
 
     OperationGraph opGraph = OpPostProcess(moduleName, parser);   
     std::vector<Operation> sortedOperations = opGraph.sortOperations(opGraph.nodes);
-
+    
+#if defined(ENABLE_LOGGING)  
     // Print details of each operation after sorting
     for (const Operation& op : sortedOperations) {
         op.printDetails();
     }          
+#endif
 
     Graph *graph = new Graph(sortedOperations, latency_requirement);
     FDS *fds = new FDS(graph, latency_requirement);

@@ -33,7 +33,6 @@ public:
 
     // Constructors
     Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, int64_t latency_requirement, int64_t latency);
-    Node(std::string name);
     // Setters for dependencies
     void setNext(Node* node);
     void setPrev(Node* node);

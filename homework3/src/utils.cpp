@@ -12,6 +12,7 @@ void FDS::print_asap(){
     for (const auto& vertex : this->graph->vertices) {
         std::cout << "Time " << vertex->asap_time << ": " << vertex->name << std::endl;
     }
+    std::cout << "\n";
 }
 
 void FDS::print_alap(){
@@ -19,6 +20,7 @@ void FDS::print_alap(){
     for (const auto& vertex : this->graph->vertices) {
         std::cout << "Time " << vertex->alap_time << ": " << vertex->name << std::endl;
     }
+    std::cout << "\n";
 }
 
 void FDS::print_time_frames(){
@@ -26,6 +28,7 @@ void FDS::print_time_frames(){
     for (const auto& vertex : this->graph->vertices) {
         std::cout << vertex->name << ": [" << vertex->time_frame[0] << "," << vertex->time_frame[1] << "]" << ", " << vertex->fds_width <<  std::endl;
     }
+    std::cout << "\n";
 }
 
 void FDS::print_fds_prob(){
@@ -36,6 +39,7 @@ void FDS::print_fds_prob(){
             std::cout << iter+1 << ":" << vertex->fds_prob.at(iter) << std::endl;
         }
     }
+    std::cout << "\n";
 }
 
 void FDS::print_type_prob(){
@@ -55,6 +59,7 @@ void FDS::print_type_prob(){
     for (int iter = 0; iter < this->latency_requirement; iter++) {
         std::cout << iter+1 << ":" << this->div_mod_prob.at(iter) << std::endl;
     }
+    std::cout << "\n";
 }
 
 void FDS::print_fds_times(){
@@ -62,4 +67,5 @@ void FDS::print_fds_times(){
     for (const auto& vertex : this->graph->vertices) {
         std::cout << vertex->name << ":" << vertex->fds_time << std::endl;
     }
+    std::cout << "\n";
 }

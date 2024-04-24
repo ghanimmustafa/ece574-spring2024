@@ -26,11 +26,6 @@ Node::Node(std::string name, std::string type, std::vector<std::string> inputs, 
     }
 }
 
-// No need to set anything related to scheduling since this constructor is only for source or sink node
-Node::Node(std::string name) {
-    this->name = name;
-}
-
 void Node::setNext(Node* node) {
    next.push_back(node);
 }
