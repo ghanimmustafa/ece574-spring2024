@@ -37,12 +37,21 @@ void FDS::run_force_directed_scheduler(){
 #endif
 
     this->perform_scheduling();
-
     for(const auto& vertex : this->graph->vertices){
         vertex->fds_time -= 1;
     }
 
     this->print_fds_times();
+    for(const auto& vertex : this->graph->vertices){
+        if(vertex->next.size() == 0){
+            if(vertex->fds_time + vertex->latency <= this->latency_requirement){
+                continue;
+            }else{
+                std::cout << "Couldn't meet the latency requirement of " << this->latency_requirement << " cycles! Increase the latency, exiting ..." << std::endl;
+                exit(0);
+            }
+        }
+    }
 }
 
 void FDS::asap_scheduler(){
@@ -67,7 +76,11 @@ void FDS::alap_scheduler(){
                     smallest_alap_latency = vertex->latency;
                 }
             }
-        this->graph->vertices.at(iter)->alap_time = smallest_alap - this->graph->vertices.at(iter)->latency;
+            if(smallest_alap - this->graph->vertices.at(iter)->latency <= 0){
+                std::cout << "Cannot schedule the circuit for " << this->latency_requirement << " cycle latency , increase the latency! Exiting ..." << std::endl;
+                exit(0); 
+            }
+            this->graph->vertices.at(iter)->alap_time = smallest_alap - this->graph->vertices.at(iter)->latency;
         }
     }
 }
