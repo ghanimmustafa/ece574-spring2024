@@ -75,23 +75,17 @@ OperationGraph OpPostProcess(const std::string& moduleName, NetlistParser& parse
     }
     */
     // Updated loop to construct the graph without adding redundant edges
-    for (const auto& op : operations) {
-        for (const auto& otherOp : operations) {
-            if (op.opType == "COMP" && otherOp.opType == "IF") {
-                if (op.result == otherOp.operands[0]) {
-                    std::cout << "Flag: COMP result is equal to IF operand" << std::endl;
-                }
-                else{
-                     std::cout << "Flag: COMP result" << op.result <<  "is NOT equal to IF operand" << otherOp.operands[0] << std::endl;
 
-                }     
-            }
-        }
-    }    
+  
     for (const auto& op : operations) {
         for (const auto& operand : op.operands) {
             for (const auto& otherOp : operations) {
-                if ((otherOp.result == operand && otherOp.opType!="IF")   || ((otherOp.result == op.condition) && op.condition !="" && otherOp.opType == "IF"))  {
+                bool only_comp_cond = otherOp.result == operand && otherOp.opType!="IF" ; //&& (otherOp.enter_branch == op.enter_branch || (!otherOp.isBranch && !op.isBranch)) 
+                bool nested_if_cond = (otherOp.result == op.condition) && op.condition !="" && otherOp.opType == "IF";
+                bool if_output = (otherOp.result == op.condition) && op.condition !="" && otherOp.opType == "IF";
+                bool if_input = (otherOp.result == operand) && op.opType == "IF";
+                bool only_comp_cond_general = only_comp_cond && ((otherOp.enter_branch == op.enter_branch) || otherOp.isBranch != op.isBranch );
+                if ( only_comp_cond_general  || if_output || if_input)  {
                     // Before adding an edge, check if 'otherOp' is already reachable from 'op'
                     // This prevents adding redundant edges
                     if (!opGraph.isReachable(otherOp.name, op.name)) {
