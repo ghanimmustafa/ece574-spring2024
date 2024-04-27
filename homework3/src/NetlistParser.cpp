@@ -286,11 +286,11 @@ void NetlistParser::parseOperation(const std::string& operationLine,const std::s
     operation.prev_order = prev_order;
     std::string nodeName = operation.opType + " v(" + std::to_string(order)+")"; // Construct a unique node name/id
     operation.name = nodeName;
-    if (operation.opType == "COMP") 
-        operation.line = result + " <= " + leftOperand + " " + opSymbol + " " + rightOperand +  " " + colon +  " " + mux_right + " ;"; 
+    if (operation.opType == "MUX2x1") 
+        operation.line = result + " <= " + leftOperand + " " + opSymbol + " " + rightOperand +  " " + colon +  " " + mux_right + ";"; 
 
     else 
-        operation.line = result + " <= " + leftOperand + " " + opSymbol + " " + rightOperand +  " ;"; 
+        operation.line = result + " <= " + leftOperand + " " + opSymbol + " " + rightOperand +  ";"; 
     operations.push_back(operation);
 
     #if defined(ENABLE_LOGGING)

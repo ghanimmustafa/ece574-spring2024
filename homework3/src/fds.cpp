@@ -21,7 +21,7 @@ FDS::FDS(Graph* graph, int64_t latency_requirement){
 
 }
 
-void FDS::run_force_directed_scheduler(){
+Graph* FDS::run_force_directed_scheduler(){
     this->asap_scheduler();
     this->alap_scheduler();
     this->assign_time_frames();
@@ -52,6 +52,7 @@ void FDS::run_force_directed_scheduler(){
             }
         }
     }
+    return this->graph;
 }
 
 void FDS::asap_scheduler(){

@@ -19,7 +19,7 @@ class FDS{
         int64_t latency_requirement;
 
         FDS(Graph *graph, int64_t latency_requirement);
-        void run_force_directed_scheduler();
+        Graph* run_force_directed_scheduler();
         void asap_scheduler();
         void alap_scheduler();
         void assign_time_frames();

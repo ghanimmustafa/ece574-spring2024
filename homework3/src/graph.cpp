@@ -6,13 +6,14 @@
 
 #include "graph.h"
 
-Node::Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, int64_t latency_requirement, int64_t latency) {
+Node::Node(std::string name, std::string type, std::vector<std::string> inputs, std::string output, int64_t datawidth, int64_t latency_requirement, int64_t latency, Operation operation) {
     this->name = name;
     this->type = type;
     this->inputs = inputs;
     this->output = output;
     this->datawidth = datawidth;
     this->latency = latency;
+    this->operation = operation;
 
     this->asap_time = 1;
     this->alap_time = latency_requirement;
@@ -74,7 +75,7 @@ Graph::Graph(std::vector<Operation> operations, int64_t latency_requirement){
             exit(0);
         }
 
-        Node *temp = new Node(op.name, type, op.operands, op.result, op.width, latency_requirement, op.cycles);
+        Node *temp = new Node(op.name, type, op.operands, op.result, op.width, latency_requirement, op.cycles, op);
         this->vertices.push_back(temp);
     } 
 

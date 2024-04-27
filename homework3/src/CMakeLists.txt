@@ -3,6 +3,7 @@ set(SOURCES
     ${SRCDIR}/main.cpp
     ${SRCDIR}/NetlistParser.cpp
     ${SRCDIR}/OpPostProcess.cpp
+    ${SRCDIR}/VerilogGenerator.cpp
     ${SRCDIR}/graph.cpp
     ${SRCDIR}/fds.cpp
     ${SRCDIR}/utils.cpp

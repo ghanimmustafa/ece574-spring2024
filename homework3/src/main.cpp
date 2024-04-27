@@ -4,6 +4,7 @@
 
 #include "OpPostProcess.h" 
 #include "NetlistParser.h"
+#include "VerilogGenerator.h"
 #include "graph.h"
 #include "fds.h"
 
@@ -22,6 +23,7 @@ int main(int argc, char** argv) {
 
     int64_t latency_requirement = std::stoi(argv[2]);
     std::string moduleName = fs::path(cFilePath).stem().string();
+    std::string outputFilePath = argv[3];
 
     NetlistParser parser(cFilePath);
     //parser.modifyModuleName(moduleName);
@@ -58,9 +60,14 @@ int main(int argc, char** argv) {
 
     Graph *graph = new Graph(sortedOperations, latency_requirement);
     FDS *fds = new FDS(graph, latency_requirement);
-    fds->run_force_directed_scheduler();
+    Graph *scheduled_graph = fds->run_force_directed_scheduler();
+
+    VerilogGenerator verilog_generator = VerilogGenerator(parser.getComponents(), parser.getOperations(), graph);
+
+    verilog_generator.generateVerilog(outputFilePath, "HLSM");
 
     delete graph;
+    // delete scheduled_graph;
     delete fds;
 
     return 0;
