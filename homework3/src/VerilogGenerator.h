@@ -16,7 +16,6 @@ private:
     std::vector<Operation> operations;
     Graph* graph;
     std::stringstream generateSequentialCode(std::vector<int64_t>scheduled_times);
-    std::string generateOperationCode(const Operation& operation) const;
 };
 
 #endif // VERILOGGENERATOR_H
