@@ -51,7 +51,7 @@ void VerilogGenerator::generateVerilog(const std::string& outputPath, const std:
         if (component.type == "input") {
             moduleDecl << "\tinput" << signModifier << widthSpecifier << " " << component.name << ",\n";
         } else if (component.type == "output") {
-            moduleDecl << "\toutput" << signModifier << widthSpecifier << " " << component.name << ",\n";
+            moduleDecl << "\toutput reg" << signModifier << widthSpecifier << " " << component.name << ",\n";
         } else if (component.type == "variable") {
             declarations << "\treg" << signModifier << widthSpecifier << " " << component.name << ";\n";
         }
@@ -95,7 +95,7 @@ void VerilogGenerator::generateVerilog(const std::string& outputPath, const std:
     
     outFile << moduleDeclStr << "\n" << declarations.str() << "\n";
 
-    std::stringstream sequential = this->generateSequentialCode(scheduled_times);
+    std::stringstream sequential = this->generateSequentialCode(state_counter - 1);
 
     outFile << sequential.str() << "\n";
 
@@ -103,16 +103,16 @@ void VerilogGenerator::generateVerilog(const std::string& outputPath, const std:
 
 }
 
-std::stringstream VerilogGenerator::generateSequentialCode(std::vector<int64_t>scheduled_times) {
+std::stringstream VerilogGenerator::generateSequentialCode(int64_t state_counter) {
     std::stringstream sequential;
 
-    sequential << "\talways @(posedge clk) begin\n";
-    sequential << "\t\tif (rst) begin\n";
+    sequential << "\talways @(posedge Clk) begin\n";
+    sequential << "\t\tif (Rst) begin\n";
     sequential << "\t\t\tstate <= Wait;\n";
 
     for (const auto& component : components) {
         if (component.type == "output" || component.type == "variable") {
-            sequential << "\t\t\t" << component.name << " = 0;\n";
+            sequential << "\t\t\t" << component.name << " <= 0;\n";
         }
     }
     sequential << "\t\tend\n";
@@ -123,33 +123,35 @@ std::stringstream VerilogGenerator::generateSequentialCode(std::vector<int64_t>s
 
     sequential << "\t\t\t\tWait: begin\n";
     sequential << "\t\t\t\t\tif (Start == 1) begin\n";
-    sequential << "\t\t\t\t\t\tState <= 1;\n";
+    sequential << "\t\t\t\t\t\tstate <= 1;\n";
     sequential << "\t\t\t\t\tend\n";
     sequential << "\t\t\t\t\telse begin\n";
-    sequential << "\t\t\t\t\t\tState <= Wait;\n";
+    sequential << "\t\t\t\t\t\tstate <= Wait;\n";
     sequential << "\t\t\t\t\tend\n";
     sequential << "\t\t\t\tend\n";
 
-    for(int iter = 0; iter < scheduled_times.size(); iter++){
-        int64_t state = scheduled_times.at(iter);
+    for(int state = 1; state < state_counter; state++){
+        std::cout << state << std::endl;
+
         sequential << "\t\t\t\t" << state << ": begin\n";
         for(const auto& vertex : this->graph->vertices){
             if(vertex->fds_time == state - 1){
                 sequential << "\t\t\t\t\t\t" << vertex->operation.line << "\n";
             }
         }
-        if(state == scheduled_times.at(scheduled_times.size() - 1)){
+        if(state == state_counter - 1){
             sequential << "\t\t\t\t\t\tstate <= Final;\n";
         }else{
-            int64_t next_state = iter + 1;
-            sequential << "\t\t\t\t\t\tstate <= " << scheduled_times.at(next_state) <<";\n";
+            sequential << "\t\t\t\t\t\tstate <= " << state + 1 <<";\n";
         }
         sequential << "\t\t\t\tend\n";
+
+
     }
 
     sequential << "\t\t\t\tFinal: begin\n";
     sequential << "\t\t\t\t\tDone <= 1;\n";
-    sequential << "\t\t\t\t\tState <= Wait;\n";
+    sequential << "\t\t\t\t\tstate <= Wait;\n";
     sequential << "\t\t\t\tend\n";
 
 

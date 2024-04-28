@@ -16,7 +16,7 @@ Node::Node(std::string name, std::string type, std::vector<std::string> inputs, 
     this->operation = operation;
 
     this->asap_time = 1;
-    this->alap_time = latency_requirement;
+    this->alap_time = latency_requirement - latency + 1;
     this->time_frame[0] = 0;
     this->time_frame[1] = 0;
     this->fds_width = 0;

@@ -15,7 +15,7 @@ private:
     std::vector<Component> components;
     std::vector<Operation> operations;
     Graph* graph;
-    std::stringstream generateSequentialCode(std::vector<int64_t>scheduled_times);
+    std::stringstream generateSequentialCode(int64_t state_counter);
 };
 
 #endif // VERILOGGENERATOR_H

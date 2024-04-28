@@ -41,7 +41,9 @@ Graph* FDS::run_force_directed_scheduler(){
         vertex->fds_time -= 1;
     }
 
+#if defined(ENABLE_LOGGING)  
     this->print_fds_times();
+#endif
     for(const auto& vertex : this->graph->vertices){
         if(vertex->next.size() == 0){
             if(vertex->fds_time + vertex->latency <= this->latency_requirement){
@@ -77,8 +79,9 @@ void FDS::alap_scheduler(){
                     smallest_alap_latency = vertex->latency;
                 }
             }
-            if(smallest_alap - this->graph->vertices.at(iter)->latency <= 0){
+            if(smallest_alap - this->graph->vertices.at(iter)->latency < 0){
                 std::cout << "Cannot schedule the circuit for " << this->latency_requirement << " cycle latency , increase the latency! Exiting ..." << std::endl;
+                std::cout << "Component is " << this->graph->vertices.at(iter)->name << " and ALAP scheduling is " << smallest_alap << std::endl;
                 exit(0); 
             }
             this->graph->vertices.at(iter)->alap_time = smallest_alap - this->graph->vertices.at(iter)->latency;
