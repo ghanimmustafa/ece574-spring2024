@@ -73,6 +73,15 @@ void VerilogGenerator::generateVerilog(const std::string& outputPath, const std:
     }
     std::sort(scheduled_times.begin(), scheduled_times.end());
     state_counter += 3;
+    
+    for(const auto& vertex : this->graph->vertices){
+        if(vertex->next.size() == 0){
+            if(state_counter + (vertex->latency - 1) > state_counter){
+                state_counter = state_counter + (vertex->latency - 1);
+            }
+        }
+    }
+    
     int64_t state_width = std::ceil(std::log2(state_counter));
 
 #if defined(ENABLE_LOGGING)  
@@ -131,8 +140,6 @@ std::stringstream VerilogGenerator::generateSequentialCode(int64_t state_counter
     sequential << "\t\t\t\tend\n";
 
     for(int state = 1; state < state_counter; state++){
-        std::cout << state << std::endl;
-
         sequential << "\t\t\t\t" << state << ": begin\n";
         for(const auto& vertex : this->graph->vertices){
             if(vertex->fds_time == state - 1){
