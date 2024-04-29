@@ -13,6 +13,8 @@
 #include <iostream>
 #include <queue>
 #include <locale>
+#include <map>
+#include <set>
 
 // Define the map as a static member of the class (or globally if more appropriate for your design)
 static std::unordered_map<std::string, std::string> operationSymbols = {

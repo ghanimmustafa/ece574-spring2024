@@ -111,7 +111,9 @@ void VerilogGenerator::generateVerilog(const std::string& outputPath, const std:
     outFile << "endmodule\n";
 
 }
+// version 0
 
+/*
 std::stringstream VerilogGenerator::generateSequentialCode(int64_t state_counter) {
     std::stringstream sequential;
 
@@ -141,15 +143,202 @@ std::stringstream VerilogGenerator::generateSequentialCode(int64_t state_counter
 
     for(int state = 1; state < state_counter; state++){
         sequential << "\t\t\t\t" << state << ": begin\n";
-        for(const auto& vertex : this->graph->vertices){
-            if(vertex->fds_time == state - 1){
-                sequential << "\t\t\t\t\t\t" << vertex->operation.line << "\n";
+        bool if_open = false;  // Flag to keep track of whether an 'if' block is open
+        bool jump_ext_state = false;
+        bool else_flag = false;
+        for (const auto& vertex : this->graph->vertices) {
+            if (vertex->fds_time == state - 1) {
+                if (if_open && vertex->operation.opType != "IF") {
+                    sequential << "\t\t\t\t\t\t\tstate <= " << state + 1 << ";\n";
+                    sequential << "\t\t\t\t\t\tend\n";  // Close the previous 'if' block
+                    jump_ext_state = true;
+                    if_open = false;  // Reset the flag as the 'if' block is now closed
+                }
+
+                if (vertex->operation.opType != "IF") {
+                    if(vertex->operation.condition != ""){
+                         if(vertex->operation.enter_branch)
+                            sequential << "\t\t\t\t\t\t" << "if (" << vertex->operation.condition <<") begin"  << "\n";
+                         else sequential << "\t\t\t\t\t\t" << "if (!" << vertex->operation.condition <<") begin"  << "\n";
+                         sequential << "\t\t\t\t\t\t\t" << vertex->operation.line  << "\n";
+                         sequential << "\t\t\t\t\t\t" << "end"  << "\n";
+
+
+                    }
+                    else
+                        sequential << "\t\t\t\t\t\t" << vertex->operation.line << "\n";
+                    
+                } else {
+                    if (if_open) { // Close the current 'if' before opening a new one
+                        sequential << "\t\t\t\t\t\t\tstate <= " << state + 1 << ";\n";
+                        jump_ext_state = true;
+                        sequential << "\t\t\t\t\t\tend\n";
+                    }
+                    sequential << "\t\t\t\t\t\t" << vertex->operation.line << " begin\n";
+                    if_open = true;  // Set the flag as an 'if' block has been opened
+                }
             }
         }
-        if(state == state_counter - 1){
-            sequential << "\t\t\t\t\t\tstate <= Final;\n";
-        }else{
-            sequential << "\t\t\t\t\t\tstate <= " << state + 1 <<";\n";
+
+        // Close any open 'if' block at the end of the state
+        if (if_open) {
+            sequential << "\t\t\t\t\t\t\tstate <= " << state + 1 << ";\n";
+            sequential << "\t\t\t\t\t\tend\n";
+            if_open = false;
+            jump_ext_state = true;
+        }
+
+        // Define state transition for non-final states
+        if (state == state_counter - 1) {
+            sequential << "\t\t\t\t\t\tstate <= Final;\n"; // Transition to final state
+        } else {
+            for (const auto& vertex : this->graph->vertices) {
+                if(vertex->operation.isBranch && !vertex->operation.enter_branch) {
+                    jump_ext_state = false;
+                    break;
+                }
+
+            }   
+            if(jump_ext_state)
+                sequential << "\t\t\t\t\t\tstate <= " << state + 2 << ";\n"; // Proceed to the next state
+            else sequential << "\t\t\t\t\t\tstate <= " << state + 1 << ";\n"; // Proceed to the next state     
+        }
+        sequential << "\t\t\t\tend\n";
+
+
+    }
+
+    sequential << "\t\t\t\tFinal: begin\n";
+    sequential << "\t\t\t\t\tDone <= 1;\n";
+    sequential << "\t\t\t\t\tstate <= Wait;\n";
+    sequential << "\t\t\t\tend\n";
+
+
+    sequential << "\t\t\tendcase\n";
+
+    sequential << "\t\tend\n";
+
+
+    sequential << "\tend\n";
+
+    return sequential;
+    
+}
+*/
+// version 1
+
+
+std::stringstream VerilogGenerator::generateSequentialCode(int64_t state_counter) {
+    std::stringstream sequential;
+
+    sequential << "\talways @(posedge Clk) begin\n";
+    sequential << "\t\tif (Rst) begin\n";
+    sequential << "\t\t\tstate <= Wait;\n";
+
+    for (const auto& component : components) {
+        if (component.type == "output" || component.type == "variable") {
+            sequential << "\t\t\t" << component.name << " <= 0;\n";
+        }
+    }
+    sequential << "\t\tend\n";
+    
+    sequential << "\t\telse begin\n";
+
+    sequential << "\t\t\tcase (state)\n";
+
+    sequential << "\t\t\t\tWait: begin\n";
+    sequential << "\t\t\t\t\tif (Start == 1) begin\n";
+    sequential << "\t\t\t\t\t\tstate <= 1;\n";
+    sequential << "\t\t\t\t\tend\n";
+    sequential << "\t\t\t\t\telse begin\n";
+    sequential << "\t\t\t\t\t\tstate <= Wait;\n";
+    sequential << "\t\t\t\t\tend\n";
+    sequential << "\t\t\t\tend\n";
+    for(int state = 1; state < state_counter; state++){
+        sequential << "\t\t\t\t" << state << ": begin\n";
+        for (const auto& vertex : this->graph->vertices) {
+            std::string nested_condition;
+            if (vertex->fds_time == state - 1) {
+                if(vertex->operation.condition != ""){
+                     Node *tmp_vertex = vertex;
+                    std::set<std::string> visited; // To track visited nodes and prevent cycles
+                    for (int i = 0; i <  this->graph->vertices.size(); i++) {
+                        bool found = false; // Flag to check if we should break the outer loop
+
+                        for (const auto& Othervertex : this->graph->vertices) {
+                            // Ensure we're looking at a different vertex that matches the needed condition
+                            if (tmp_vertex->operation.name != Othervertex->operation.name &&
+                                Othervertex->operation.opType == "IF" &&
+                                !tmp_vertex->operation.condition.empty() &&
+                                tmp_vertex->operation.condition == Othervertex->operation.result) {
+
+                                // Prevent cycles by checking if we've already visited this node
+                                if (visited.find(Othervertex->operation.name) != visited.end()) {
+                                    #if defined(ENABLE_LOGGING)  
+                                    std::cout << "Cycle detected, stopping traversal." << std::endl;
+                                    #endif 
+                                    break; // Break inner loop to stop processing further
+                                }
+
+                                // Append condition based on the branch type
+                                if (Othervertex->operation.enter_branch && Othervertex->operation.condition!="") {
+                                    nested_condition += " && " + Othervertex->operation.condition;
+                                } else if (!Othervertex->operation.enter_branch && Othervertex->operation.condition!="") {
+                                    nested_condition += " && !" + Othervertex->operation.condition;
+                                }
+
+                                // Move to the next vertex and mark the current one as visited
+                                visited.insert(tmp_vertex->operation.name);
+                                tmp_vertex = Othervertex;
+                                found = true; // Mark that we have found a next vertex
+                                break; // Break inner loop since we are changing the tmp_vertex
+                            }
+                        }
+
+                        // If no valid next vertex was found, break the outer loop
+                        if (!found) {
+                            break;
+                        }
+                    }
+                }                   
+                /*if(vertex->operation.opType == "IF"){
+                    sequential << "\t\t\t\t\t\t" << "// This state includes a 1-cycle scheduled IF node where the state transition represents its latency." << "\n";
+                }*/    
+                if(vertex->operation.opType != "IF"){
+                    if(vertex->operation.condition != ""){
+ 
+
+
+
+                        
+                        if(vertex->operation.enter_branch){
+                            
+                            sequential << "\t\t\t\t\t\t" << "if (" << vertex->operation.condition + nested_condition <<") begin"  << "\n";
+                        }
+                        else {
+                            sequential << "\t\t\t\t\t\t" << "if (!" << vertex->operation.condition + nested_condition <<") begin"  << "\n";
+                        }    
+                        sequential << "\t\t\t\t\t\t\t" << vertex->operation.line  << "\n";
+                        sequential << "\t\t\t\t\t\t" << "end"  << "\n";
+
+
+                    }
+                    else
+                        sequential << "\t\t\t\t\t\t" << vertex->operation.line << "\n";
+                    
+                } 
+
+            }
+        }
+
+
+
+        // Define state transition for non-final states
+        if (state == state_counter - 1) {
+            sequential << "\t\t\t\t\t\tstate <= Final;\n"; // Transition to final state
+        } else {
+            
+            sequential << "\t\t\t\t\t\tstate <= " << state + 1 << ";\n"; // Proceed to the next state     
         }
         sequential << "\t\t\t\tend\n";
 
