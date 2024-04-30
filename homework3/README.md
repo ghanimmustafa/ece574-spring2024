@@ -14,7 +14,7 @@ Our framework parses C-like netlist files, capable of containing multiple condit
 
 4. **Verilog RTL Generation**: Finally, the Verilog RTL code corresponding to the netlist's FSM is generated using `VerilogGenerator.cpp`.
 
-To run the program after bulding it with `cmake` and `make`, follow these steps:
+To run the program after building it with `cmake` and `make`, follow these steps:
 
 ```
 Usage: ./hlsyn <cFile> <latency> <verilogFile>
@@ -22,5 +22,5 @@ Usage: ./hlsyn <cFile> <latency> <verilogFile>
 
 
 **Team Contributions:**
-Umut implmeneted the FDS algorithm and Verilog code generator for the logical and arthmatic operations. Mustafa implemented the netlist parser, DAG generation, and Verilog code generation for the if-based (conditional) operations.  
+Umut implemented the FDS algorithm and Verilog code generator for the logical and arithmetic operations. Mustafa implemented the netlist parser, DAG generation, and Verilog code generation for the if-based (conditional) operations.  
 
