@@ -1,6 +1,7 @@
 **Names and NetIDs:**
     Mustafa Ghanim: mustafaghanim - Enrolled in ECE574A
     Umut Suluhan  : suluhan       - Enrolled in ECE574A
+    
 **Program Description:**
 
 Our framework parses C-like netlist files, capable of containing multiple conditional, logical, and arithmetic operations, which are then implemented using Verilog-RTL on hardware via Finite State Machines (FSMs). The process involves several stages:
@@ -21,5 +22,5 @@ Usage: ./hlsyn <cFile> <latency> <verilogFile>
 
 
 **Team Contributions:**
-Umut implmeneted the FDS algorithim and Verilog code generator for the logical and arthmatic operations. Mustafa implemented the netlist parser, DAG generation, and Verilog code generation for the if-based (conditional) operations.  
+Umut implmeneted the FDS algorithm and Verilog code generator for the logical and arthmatic operations. Mustafa implemented the netlist parser, DAG generation, and Verilog code generation for the if-based (conditional) operations.  
 
